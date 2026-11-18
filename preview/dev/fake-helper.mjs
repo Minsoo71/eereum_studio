@@ -123,7 +123,7 @@ const helper = http.createServer(async (req, res) => {
     }
     if (!body.variant) return runner.stop();
     const v = variants.find((x) => x.id === body.variant);
-    if (!v) return emit('error', { code: 'UNKNOWN_VARIANT', message: body.variant });
+    if (!v) return emit('helper.error', { code: 'UNKNOWN_VARIANT', message: body.variant });
     runner.start(v).catch(() => {});
     return;
   }

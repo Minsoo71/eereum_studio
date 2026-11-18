@@ -234,7 +234,7 @@ const handlers = {
     if (st.compare) renderStage();
   },
   'helper.status': (d) => status(d.site === 'ready' ? `사본 ${d.repoCommit?.slice(0, 7) ?? ''} · 연결됨` : `사본 ${d.site}`, d.site === 'ready' ? 'ok' : d.site === 'failed' ? 'bad' : 'busy'),
-  error: (d) => toast(`${d.code}: ${d.message}`, true),
+  'helper.error': (d) => toast(`${d.code}: ${d.message}`, true),
 };
 
 function connectEvents() {
