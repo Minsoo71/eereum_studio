@@ -19,16 +19,22 @@ export function safeRef(ref) {
   return ref;
 }
 
-/** 열린 PR 브랜치 목록(읽기만) — PR 번호 refs + 일반 브랜치. main은 공개본이므로 뺌 */
-export async function listVariants(repoDir) {
-  const { stdout } = await git(repoDir, 'ls-remote', 'origin', 'refs/heads/*', 'refs/pull/*/head');
+/**
+ * 수정안 목록(읽기만 · git ls-remote). main은 공개본이므로 뺌.
+ * 기본 = **열린 PR만**(PC8 B-2: 모든 브랜치면 385개) — GitHub는 열린 PR에만 refs/pull/N/merge를 남김(닫힌 PR은 지움)
+ * all: true = 모든 PR · 모든 브랜치
+ */
+export async function listVariants(repoDir, { all = false } = {}) {
+  const { stdout } = await git(repoDir, 'ls-remote', 'origin', 'refs/heads/*', 'refs/pull/*/head', 'refs/pull/*/merge');
+  const lines = stdout.trim().split(/\r?\n/).map((l) => l.split('\t'));
+  const open = new Set(lines.map(([, ref]) => ref?.match(/^refs\/pull\/(\d+)\/merge$/)?.[1]).filter(Boolean));
   const out = [];
-  for (const line of stdout.trim().split('\n')) {
-    const [sha, ref] = line.split('\t');
+  for (const [sha, ref] of lines) {
     if (!ref) continue;
     const pr = ref.match(/^refs\/pull\/(\d+)\/head$/);
-    if (pr) out.push({ kind: 'pr', id: `pr-${pr[1]}`, label: `#${pr[1]}`, fetchRef: ref, sha });
-    else if (ref.startsWith('refs/heads/') && ref !== 'refs/heads/main')
+    if (pr) {
+      if (all || open.has(pr[1])) out.push({ kind: 'pr', id: `pr-${pr[1]}`, label: `#${pr[1]}`, open: open.has(pr[1]), fetchRef: ref, sha });
+    } else if (all && ref.startsWith('refs/heads/') && ref !== 'refs/heads/main')
       out.push({ kind: 'branch', id: ref.slice(11), label: ref.slice(11), fetchRef: ref, sha });
   }
   return out.sort((a, b) => (a.kind === b.kind ? b.label.localeCompare(a.label, 'en', { numeric: true }) : a.kind === 'pr' ? -1 : 1));

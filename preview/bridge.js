@@ -9,8 +9,9 @@
  *   { type: 'studio:scrollTo', ratio }                      → 나란히 보기 스크롤 맞추기
  *   { type: 'studio:hello' }                                → 지금 칸 목록 다시 보냄
  * 보내는 것(이 화면 → 부모):
- *   { type: 'studio:ready', path, slots: [{ key, kind, count }] }
+ *   { type: 'studio:ready', path, slots: [{ key, kind, count, visible }] }
  *   { type: 'studio:missing', key }                         → 이 화면에 없는 칸
+ *   { type: 'studio:hidden', key, width }                   → 칸은 있지만 이 폭에서 숨음(예: PC에서만 보이는 칸)
  *   { type: 'studio:scroll', ratio }                        → 사용자가 스크롤함
  *   { type: 'studio:applied', key, version, count }         → 바꿔 끼움 끝
  */
@@ -61,12 +62,19 @@
     document.querySelectorAll('[data-slot]').forEach(function (el) {
       var key = el.getAttribute('data-slot');
       var kind = el.getAttribute('data-slot-kind') || 'normal';
-      if (!map[key]) map[key] = { key: key, kind: kind, count: 0 };
+      if (!map[key]) map[key] = { key: key, kind: kind, count: 0, visible: 0 };
       map[key].count++;
+      if (isVisible(el)) map[key].visible++;
     });
     return Object.keys(map).map(function (k) {
       return map[k];
     });
+  }
+
+  /** 이 화면 폭에서 실제로 보이는지 (0×0 · display:none이면 숨음 · PC8 B-1: home.story는 휴대폰에서 숨는 칸) */
+  function isVisible(el) {
+    var r = el.getBoundingClientRect();
+    return r.width > 0 && r.height > 0;
   }
 
   function announce(force) {
@@ -112,10 +120,16 @@
       post({ type: 'studio:missing', key: key });
       return;
     }
+    var shown = els.filter(isVisible);
+    if (!shown.length) {
+      // 칸은 있지만 이 폭에서 숨음 → 미리보기 창이 다른 기기 보기로 바꾸도록 알림
+      post({ type: 'studio:hidden', key: key, width: innerWidth });
+      return;
+    }
     muteScrollUntil = Date.now() + 800;
-    els[0].scrollIntoView({ block: 'center', behavior: 'smooth' });
+    shown[0].scrollIntoView({ block: 'center', behavior: 'smooth' });
     setTimeout(function () {
-      els.forEach(function (el) {
+      shown.forEach(function (el) {
         outline(el, el.getAttribute('data-slot-kind'));
       });
     }, 350);

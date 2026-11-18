@@ -35,9 +35,14 @@ test('listVariants: PR refs + 브랜치(읽기만) · main 뺌 · PR 먼저', as
   g(work, 'add', '.');
   g(work, 'commit', '-q', '-m', 'one');
   g(work, 'remote', 'add', 'origin', origin);
-  g(work, 'push', '-q', 'origin', 'main', 'main:refs/heads/pc1/story', 'main:refs/pull/93/head', 'main:refs/pull/7/head');
-  const list = await listVariants(work);
-  assert.deepEqual(list.map((v) => v.id), ['pr-93', 'pr-7', 'pc1/story']);
-  assert.equal(list[0].fetchRef, 'refs/pull/93/head');
-  assert.ok(!list.some((v) => v.id === 'main'));
+  // #93 = 열린 PR(merge ref 있음) · #7 = 닫힌 PR(head만)
+  g(work, 'push', '-q', 'origin', 'main', 'main:refs/heads/pc1/story', 'main:refs/pull/93/head', 'main:refs/pull/93/merge', 'main:refs/pull/7/head');
+  const open = await listVariants(work);
+  assert.deepEqual(open.map((v) => v.id), ['pr-93'], '기본은 열린 PR만(PC8 B-2)');
+  assert.equal(open[0].fetchRef, 'refs/pull/93/head');
+  assert.equal(open[0].open, true);
+  const all = await listVariants(work, { all: true });
+  assert.deepEqual(all.map((v) => v.id), ['pr-93', 'pr-7', 'pc1/story']);
+  assert.equal(all.find((v) => v.id === 'pr-7').open, false);
+  assert.ok(!all.some((v) => v.id === 'main'));
 });

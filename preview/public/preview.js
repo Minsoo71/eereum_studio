@@ -13,6 +13,8 @@ const st = {
   pages: [],
   slots: [], // 약속 slots
   present: new Map(), // iframe → Set(key) (bridge가 알려 준 지금 화면의 칸)
+  hidden: new Map(), // iframe → Set(key) (칸은 있지만 그 폭에서 숨음 · PC8 B-1)
+  autoSwitched: null, // 숨는 칸 때문에 기기 보기를 바꾼 칸(한 번만 바꿈)
   selected: null,
   pendingSelect: null, // 페이지를 옮긴 뒤 고를 칸
   frames: [], // { el, role: 'public'|'variant', device }
@@ -62,6 +64,7 @@ function scaleFor(device) {
 function renderStage() {
   st.frames = [];
   st.present.clear();
+  st.hidden.clear();
   const stage = $('#stage');
   stage.textContent = '';
   const roles = st.compare ? ['public', 'variant'] : ['public'];
@@ -122,15 +125,23 @@ function renderChips() {
   const box = $('#slots');
   box.textContent = '';
   const present = new Set([...st.present.values()].flatMap((s) => [...s]));
+  // 지금 보이는 모든 창에서 숨는 칸 = "이 폭에서는 숨음"
+  const frames = [...st.present.keys()];
+  const hiddenEverywhere = (k) => frames.length > 0 && frames.every((f) => !st.present.get(f).has(k) || st.hidden.get(f)?.has(k));
   const p = page();
   const keys = st.slots.filter((s) => s.pageId === p?.pageId || present.has(s.key)).map((s) => s.key);
   for (const k of new Set([...keys, ...present])) {
     const s = slotByKey(k);
     const b = document.createElement('button');
-    b.className = `chip${present.has(k) ? '' : ' absent'}`;
+    const hiddenHere = present.has(k) && hiddenEverywhere(k);
+    b.className = `chip${present.has(k) ? '' : ' absent'}${hiddenHere ? ' hidden-here' : ''}`;
     b.setAttribute('aria-pressed', String(st.selected === k));
     b.textContent = k;
-    b.title = present.has(k) ? (s?.position ?? '') : `이 화면에 아직 칸 표시가 없음(data-slot) · ${s?.position ?? ''}`;
+    b.title = !present.has(k)
+      ? `이 화면에 아직 칸 표시가 없음(data-slot) · ${s?.position ?? ''}`
+      : hiddenHere
+        ? `이 화면 폭에서는 숨는 칸(다른 기기 보기에서 보임) · ${s?.position ?? ''}`
+        : (s?.position ?? '');
     if (s && s.kind !== 'normal') {
       const kind = document.createElement('span');
       kind.className = 'kind';
@@ -174,6 +185,7 @@ window.addEventListener('message', (e) => {
   const m = e.data;
   if (m.type === 'studio:ready') {
     st.present.set(frame.el, new Set(m.slots.map((s) => s.key)));
+    st.hidden.set(frame.el, new Set(m.slots.filter((s) => s.visible === 0).map((s) => s.key)));
     renderChips();
     if (st.pendingSelect) {
       const k = st.pendingSelect;
@@ -182,6 +194,8 @@ window.addEventListener('message', (e) => {
         broadcast({ type: 'studio:select', key: k });
       }
     }
+  } else if (m.type === 'studio:hidden') {
+    onHidden(m.key, frame);
   } else if (m.type === 'studio:missing') {
     toast(`“${m.key}” — 이 화면에 없는 칸`, true);
   } else if (m.type === 'studio:applied') {
@@ -191,9 +205,34 @@ window.addEventListener('message', (e) => {
   }
 });
 
+/* ---------- 숨는 칸 (PC8 B-1) ---------- */
+const DEVICE_NAME = { phone: '휴대폰', pc: 'PC' };
+function setView(v) {
+  st.view = v;
+  for (const b of $('#view').children) b.setAttribute('aria-pressed', String(b.dataset.v === v));
+  renderStage();
+}
+function onHidden(key, frame) {
+  if (st.view === 'both') {
+    // 다른 기기 창에서는 보이므로 바꾸지 않고 알려만 줌
+    toast(`“${key}”는 ${DEVICE_NAME[frame.device]}에서 숨는 칸이에요 · 옆 창에서 보세요`);
+    return;
+  }
+  if (st.autoSwitched === key) {
+    toast(`“${key}”는 휴대폰 · PC 어느 쪽에서도 지금 안 보여요`, true);
+    return;
+  }
+  const other = frame.device === 'phone' ? 'pc' : 'phone';
+  st.autoSwitched = key;
+  st.pendingSelect = key;
+  toast(`“${key}”는 ${DEVICE_NAME[frame.device]}에서 숨는 칸이라 ${DEVICE_NAME[other]} 보기로 바꿨어요`);
+  setView(other);
+}
+
 /* ---------- 신호 처리 (도우미 SSE · events.md) ---------- */
 function selectSlot(key, paths) {
   st.selected = key;
+  if (st.autoSwitched !== key) st.autoSwitched = null;
   const s = slotByKey(key);
   const onScreen = [...st.present.values()].some((set) => set.has(key));
   if (!onScreen && s) {
@@ -269,7 +308,7 @@ async function loadSlots() {
   renderPages();
 }
 
-async function loadVariants() {
+async function loadVariants(all = false) {
   const sel = $('#variant');
   sel.textContent = '';
   const none = document.createElement('option');
@@ -277,7 +316,8 @@ async function loadVariants() {
   none.textContent = '수정안 고르기…';
   sel.append(none);
   try {
-    const j = await api('variants');
+    const j = await api(all ? 'variants?all=1' : 'variants');
+    if (!all && !(j.variants || []).length) none.textContent = '열린 PR 없음';
     for (const v of j.variants || []) {
       const o = document.createElement('option');
       o.value = v.id;
@@ -287,6 +327,13 @@ async function loadVariants() {
   } catch (err) {
     toast(`수정안 목록을 못 받음: ${err.message}`, true);
   }
+  if (!all) {
+    // 기본은 열린 PR만 · 필요하면 모든 브랜치(PC8 B-2)
+    const more = document.createElement('option');
+    more.value = '__all__';
+    more.textContent = '모든 브랜치 보기…';
+    sel.append(more);
+  }
   if (st.variant) sel.value = st.variant.id;
 }
 
@@ -294,7 +341,7 @@ async function init() {
   try {
     st.config = { ...st.config, ...(await api('preview-config')) };
   } catch {}
-  seg('#view', 'v', (v) => ((st.view = v), renderStage()));
+  seg('#view', 'v', (v) => setView(v));
   seg('#locale', 'l', (l) => {
     if (!LOCALES.includes(l)) return;
     st.locale = l;
@@ -309,6 +356,11 @@ async function init() {
     renderStage();
   });
   $('#variant').onchange = (e) => {
+    if (e.target.value === '__all__') {
+      e.target.value = st.variant?.id ?? '';
+      loadVariants(true);
+      return;
+    }
     const id = e.target.value || null;
     st.variant = id ? { id, state: 'starting' } : null;
     renderStage();

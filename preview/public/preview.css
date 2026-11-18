@@ -43,3 +43,4 @@ select:disabled { opacity: .55; }
 .screen iframe { position: absolute; left: 0; top: 0; border: 0; transform-origin: 0 0; background: var(--white); }
 .screen .wait { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 13px; text-align: center; padding: 16px; }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; } }
+.chip.hidden-here { opacity: .7; text-decoration: line-through; text-decoration-color: rgba(0,0,0,.35); }

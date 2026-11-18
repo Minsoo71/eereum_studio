@@ -98,7 +98,7 @@ const helper = http.createServer(async (req, res) => {
   if (p === '/api/variants') {
     if (!REPO) return json(res, 200, { ok: true, variants: [{ id: 'demo', label: '#0', title: '(시험) --repo 를 주면 진짜 PR 목록' }] });
     try {
-      variants = await listVariants(REPO);
+      variants = await listVariants(REPO, { all: url.searchParams.get('all') === '1' });
       return json(res, 200, { ok: true, variants });
     } catch (err) {
       return fail(res, 'GIT', String(err.message), 500);

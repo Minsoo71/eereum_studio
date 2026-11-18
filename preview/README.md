@@ -55,3 +55,5 @@ node preview/dev/fake-helper.mjs --site-port 4351 --repo D:/eereum_studio/site -
 - 사이트에 `data-slot`이 붙기 전(PR-A 전)에는 진짜 사본 화면의 칸 목록이 비어 있음 → 칸 줄에 점선(“이 화면에 아직 칸 표시가 없음”)으로 보임 · 시험 페이지 모드로 시험
 - 영상 칸은 비어 있어도 칸 표시(테두리 최소 크기 + 칸 이름)
 - "동작 줄이기" 설정이면 미리보기 창의 움직임 끔
+- **숨는 칸**(PC8 B-1): 어떤 칸은 한쪽 폭에서만 보임(예: `home.story` = PC만 · `home.story.bg` = 휴대폰만) → 숨는 폭에서 고르면 bridge가 `studio:hidden`을 보내고, 미리보기는 **보이는 기기 보기로 자동으로 바꿔** 그 칸을 고름("둘 다" 보기면 안내만) · 칸 목록에서 이 폭에서 숨는 칸은 줄 그어 보임
+- **수정안 목록**(PC8 B-2): 기본 = **열린 PR만**(GitHub가 열린 PR에만 남기는 `refs/pull/N/merge`로 판단 · 쇼핑몰 지금 4개) · 맨 아래 "모든 브랜치 보기…" = `GET /api/variants?all=1` → `listVariants(dir, { all: true })`(385개)

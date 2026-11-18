@@ -19,7 +19,7 @@ function el(attrs, children = []) {
     scrollIntoView() {
       e.scrolled = true;
     },
-    getBoundingClientRect: () => ({ left: 0, top: 0, width: 100, height: 80 }),
+    getBoundingClientRect: () => (attrs.hidden ? { left: 0, top: 0, width: 0, height: 0 } : { left: 0, top: 0, width: 100, height: 80 }),
   };
   Object.defineProperty(e, 'src', { get: () => e.attrs.src, set: (v) => (e.attrs.src = v) });
   Object.defineProperty(e, 'srcset', { get: () => e.attrs.srcset || '', set: (v) => (e.attrs.srcset = v) });
@@ -52,7 +52,7 @@ function setup(slots) {
   const ctx = {
     window, document, location: { href: 'http://localhost:4301/', origin: 'http://localhost:4301', pathname: '/' },
     URL, setTimeout: (fn) => fn(), clearTimeout() {}, Date, Number, String, JSON, Object, Array,
-    MutationObserver: class { observe() {} }, innerHeight: 800, scrollX: 0, scrollY: 0, scrollTo() {},
+    MutationObserver: class { observe() {} }, innerHeight: 800, innerWidth: 390, scrollX: 0, scrollY: 0, scrollTo() {},
   };
   ctx.window.window = ctx.window;
   vm.runInNewContext(SRC, ctx);
@@ -90,6 +90,18 @@ test('bridge: 다른 출처에서 온 메시지는 무시 · 없는 칸은 missi
   assert.equal(img.src, '/x.jpg');
   send({ type: 'studio:select', key: 'ring.angle.3' });
   assert.ok(posted.some((p) => p.m.type === 'studio:missing' && p.m.key === 'ring.angle.3'));
+});
+
+test('bridge: 이 폭에서 숨는 칸 — ready에 visible 0 · 고르면 studio:hidden (PC8 B-1)', () => {
+  const hiddenBox = el({ 'data-slot': 'home.story', hidden: true });
+  const shown = el({ 'data-slot': 'home.hero' });
+  const { posted, send } = setup([hiddenBox, shown]);
+  const ready = posted.find((p) => p.m.type === 'studio:ready').m;
+  assert.equal(ready.slots.find((s) => s.key === 'home.story').visible, 0);
+  assert.equal(ready.slots.find((s) => s.key === 'home.hero').visible, 1);
+  send({ type: 'studio:select', key: 'home.story' });
+  assert.ok(posted.some((p) => p.m.type === 'studio:hidden' && p.m.key === 'home.story'));
+  assert.notEqual(hiddenBox.scrolled, true, '숨은 칸으로는 스크롤하지 않음');
 });
 
 test('bridge: 칸 고름 → 그 칸으로 스크롤', () => {
