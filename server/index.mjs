@@ -185,7 +185,7 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, readFileSync(f), STATIC[path.extname(f)] ?? 'application/octet-stream');
     }
     if (req.method === 'GET' && url.pathname === '/api/preview-config') return send(res, 200, { ok: true, siteOrigin: config.siteOrigin, variantOrigin: config.variantOrigin });
-    if (req.method === 'GET' && url.pathname === '/api/variants') return send(res, 200, { ok: true, variants: await listVariants(config.site) });
+    if (req.method === 'GET' && url.pathname === '/api/variants') return send(res, 200, { ok: true, variants: await listVariants(config.site, { all: url.searchParams.get('all') === '1' }) });
     if (req.method === 'GET' && url.pathname === '/api/events') return subscribe(req, res);
     if (req.method === 'GET' && url.pathname === '/api/status') return send(res, 200, { ok: true, site: siteState(), siteOrigin: config.siteOrigin, repoCommit: register?.source.repoCommit, machine: config.machine, clients: clientCount() });
     if (req.method === 'GET' && url.pathname === '/api/site-log') return send(res, 200, siteLog(), 'text/plain; charset=utf-8');
