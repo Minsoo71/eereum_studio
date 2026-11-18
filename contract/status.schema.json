@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "eereum-studio/status.schema.json",
+  "title": "eereum 이미지 교체 스튜디오 · 칸 상태 파일 (약속 v1 · PC9 · 2026-11-17)",
+  "description": "칸마다 작은 파일 하나: 이미지교체\\_상태\\<key>.json (데스크톱 · 노트북 동시 사용 때 Synology 충돌을 줄이려고 칸마다 나눔). 대장 창은 이 파일들을 모아 그린다. 쓰는 쪽은 통째로 새로 쓰고(부분 수정 X) revision을 1 올린다. 파일 이름은 칸 ID가 아니라 key(칸 ID는 화면 순서로 다시 붙을 수 있음).",
+  "type": "object",
+  "required": ["version", "key", "slotId", "image", "video", "revision", "updatedAt", "updatedBy"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": 1 },
+    "key": { "type": "string", "description": "칸 key(= media.ts 키 = data-slot)" },
+    "slotId": { "type": "string", "pattern": "^P[0-9]{2}-[0-9]{2}$", "description": "쓴 때의 칸 ID(참고용)" },
+    "image": { "$ref": "#/$defs/lane" },
+    "video": { "$ref": "#/$defs/lane" },
+    "trial": {
+      "description": "스튜디오에서 놓아 본 시험 그림(내 컴퓨터 사본에만 · 공개 사이트 변화 없음). 없으면 null",
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["file", "placedAt", "machine"],
+          "additionalProperties": false,
+          "properties": {
+            "file": { "type": "string", "description": "이미지교체\\_시험\\ 안 파일 이름" },
+            "media": { "enum": ["image", "video"] },
+            "placedAt": { "type": "string", "format": "date-time" },
+            "machine": { "type": "string", "description": "놓은 컴퓨터 이름(데스크톱 · 노트북)" },
+            "variant": { "type": "string", "description": "수정안 브랜치에 놓았으면 그 브랜치 이름 · 공개본이면 없음" }
+          }
+        }
+      ]
+    },
+    "request": {
+      "description": "확정해서 요청\\에 넣은 파일(request-naming.md). 없으면 null",
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["file", "requestedAt"],
+          "additionalProperties": false,
+          "properties": {
+            "file": { "type": "string" },
+            "requestedAt": { "type": "string", "format": "date-time" },
+            "license": { "type": "string", "description": "출처 · 라이선스(CC는 필수 표기 · NC 금지)" },
+            "ai": { "type": "boolean", "description": "AI로 만든 그림인지" },
+            "altKo": { "type": "string", "description": "새 대체 글(바꿀 때만)" },
+            "pr": { "type": "string", "description": "M5에서 만든 사이트 PR 번호(예: #120)" }
+          }
+        }
+      ]
+    },
+    "history": {
+      "type": "array",
+      "description": "교체 이력(최근 순 · 이전\\에 칸마다 최근 2개 판 보관)",
+      "items": {
+        "type": "object",
+        "required": ["at", "from", "to"],
+        "additionalProperties": false,
+        "properties": {
+          "at": { "type": "string", "format": "date-time" },
+          "from": { "type": "string" },
+          "to": { "type": "string" },
+          "pr": { "type": "string" },
+          "backup": { "type": "string", "description": "이전\\ 안 보관 파일" }
+        }
+      }
+    },
+    "revision": { "type": "integer", "minimum": 1 },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "updatedBy": { "type": "string", "description": "studio@<컴퓨터 이름> · PC9(M5) 등" }
+  },
+  "$defs": {
+    "lane": {
+      "type": "object",
+      "description": "이미지 칸 · 영상 칸 한 줄",
+      "required": ["state"],
+      "additionalProperties": false,
+      "properties": {
+        "state": {
+          "enum": ["live", "empty", "not-accepted", "trial", "requested", "in-progress", "pr-open", "published"],
+          "description": "live = 지금 공개 사이트에 있음 · empty = 넣을 수 있지만 비어 있음 · not-accepted = 사이트가 이 종류를 안 받음 · trial = 스튜디오에서 놓아 봄 · requested = 요청\\에 넣음 · in-progress = 작업중\\ · pr-open = 사이트 PR 열림 · published = 공개됨(다음 대장에서 live로)"
+        },
+        "file": { "type": "string", "description": "지금 파일 주소(live일 때)" }
+      }
+    }
+  }
+}

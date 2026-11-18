@@ -1,0 +1,1672 @@
+{
+  "version": 1,
+  "source": {
+    "repoCommit": "092694c",
+    "branch": "main",
+    "generatedAt": "2026-11-17T07:59:06.204Z"
+  },
+  "pages": [
+    {
+      "pageId": "P01",
+      "name": "홈",
+      "paths": [
+        "/"
+      ]
+    },
+    {
+      "pageId": "P02",
+      "name": "반지 둘러보기 · 전체 반지 · 검색",
+      "paths": [
+        "/rings",
+        "/rings/all",
+        "/search"
+      ]
+    },
+    {
+      "pageId": "P03",
+      "name": "반지 상세(이니셜 고르기)",
+      "paths": [
+        "/ring/mine"
+      ]
+    },
+    {
+      "pageId": "P04",
+      "name": "브랜드 스토리",
+      "paths": [
+        "/about"
+      ]
+    },
+    {
+      "pageId": "P05",
+      "name": "이름 이야기",
+      "paths": [
+        "/story"
+      ]
+    },
+    {
+      "pageId": "P06",
+      "name": "장바구니 · 주문서 · 주문 완료",
+      "paths": [
+        "/cart",
+        "/checkout",
+        "/order/complete"
+      ]
+    },
+    {
+      "pageId": "P07",
+      "name": "공유 미리보기(카카오톡 · SNS)",
+      "paths": [
+        "/"
+      ]
+    },
+    {
+      "pageId": "P08",
+      "name": "디자인 확인(개발용)",
+      "paths": [
+        "/dev/look"
+      ],
+      "public": false
+    }
+  ],
+  "slots": [
+    {
+      "slotId": "P01-01",
+      "key": "home.hero",
+      "pageId": "P01",
+      "position": "첫 화면 큰 사진(모바일 정사각 · PC 5:4)",
+      "kind": "normal",
+      "accepts": "both",
+      "acceptsVerified": true,
+      "spec": {
+        "ratio": "5:4",
+        "minWidth": 1600,
+        "outputWidths": [
+          960,
+          1600
+        ],
+        "outputFormats": [
+          "webp",
+          "jpg"
+        ],
+        "mobileCrop": "separate-file",
+        "focus": "center",
+        "displayRatio": "모바일 1:1 · PC 5:4"
+      },
+      "current": {
+        "pc": {
+          "url": "/media/home/hero.jpg",
+          "width": 1750,
+          "height": 1400,
+          "format": "jpg",
+          "bytes": 242075
+        },
+        "mobile": {
+          "url": "/media/home/hero-mobile.jpg",
+          "width": 1320,
+          "height": 1320,
+          "format": "jpg",
+          "bytes": 175613
+        }
+      },
+      "alt": {
+        "key": "media.home.hero",
+        "ko": "붉은 리넨 위에 세워 둔 실버925 이름 반지"
+      },
+      "source": "Figma 임시 렌더",
+      "dataSlot": "home.hero",
+      "inUse": true
+    },
+    {
+      "slotId": "P01-02",
+      "key": "home.case.mine",
+      "pageId": "P01",
+      "position": "이름 반지 카드 ① 그대 이름",
+      "kind": "normal",
+      "accepts": "both",
+      "acceptsVerified": true,
+      "spec": {
+        "ratio": "1.37:1",
+        "minWidth": 960,
+        "outputWidths": [
+          960,
+          1600
+        ],
+        "outputFormats": [
+          "webp",
+          "jpg"
+        ],
+        "mobileCrop": "separate-file",
+        "focus": "0.97 0.5",
+        "displayRatio": "모바일 카드 · PC 1:1"
+      },
+      "current": {
+        "pc": {
+          "url": "/media/home/case-mine-v2.jpg",
+          "width": 661,
+          "height": 481,
+          "format": "jpg",
+          "bytes": 18526
+        },
+        "mobile": {
+          "url": "/media/home/case-mine-m-v3.jpg",
+          "width": 946,
+          "height": 688,
+          "format": "jpg",
+          "bytes": 41176
+        }
+      },
+      "alt": {
+        "key": "media.home.case.mine",
+        "ko": "베이지 리넨 위의 그대 이름 반지"
+      },
+      "source": "Figma 임시 렌더",
+      "dataSlot": "home.case.mine",
+      "inUse": true
+    },
+    {
+      "slotId": "P01-03",
+      "key": "home.case.ours",
+      "pageId": "P01",
+      "position": "이름 반지 카드 ② 우리 이름",
+      "kind": "normal",
+      "accepts": "both",
+      "acceptsVerified": true,
+      "spec": {
+        "ratio": "1.37:1",
+        "minWidth": 960,
+        "outputWidths": [
+          960,
+          1600
+        ],
+        "outputFormats": [
+          "webp",
+          "jpg"
+        ],
+        "mobileCrop": "separate-file",
+        "focus": "0.8 0.5",
+        "displayRatio": "모바일 카드 · PC 1:1"
+      },
+      "current": {
+        "pc": {
+          "url": "/media/home/case-ours-v2.jpg",
+          "width": 730,
+          "height": 531,
+          "format": "jpg",
+          "bytes": 45333
+        },
+        "mobile": {
+          "url": "/media/home/case-ours-m-v3.jpg",
+          "width": 1017,
+          "height": 740,
+          "format": "jpg",
+          "bytes": 61941
+        }
+      },
+      "alt": {
+        "key": "media.home.case.ours",
+        "ko": "분홍빛 천 위에 나란히 놓인 우리 이름 반지 두 개"
+      },
+      "source": "Figma 임시 렌더",
+      "dataSlot": "home.case.ours",
+      "inUse": true
+    },
+    {
+      "slotId": "P01-04",
+      "key": "home.case.wish",
+      "pageId": "P01",
+      "position": "이름 반지 카드 ③ 소망 이름",
+      "kind": "normal",
+      "accepts": "both",
+      "acceptsVerified": true,
+      "spec": {
+        "ratio": "1.37:1",
+        "minWidth": 960,
+        "outputWidths": [
+          960,
+          1600
+        ],
+        "outputFormats": [
+          "webp",
+          "jpg"
+        ],
+        "mobileCrop": "separate-file",
+        "focus": "0.97 0.5",
+        "displayRatio": "모바일 카드 · PC 1:1"
+      },
+      "current": {
+        "pc": {
+          "url": "/media/home/case-wish-v2.jpg",
+          "width": 661,
+          "height": 481,
+          "format": "jpg",
+          "bytes": 18984
+        },
+        "mobile": {
+          "url": "/media/home/case-wish-m-v3.jpg",
+          "width": 946,
+          "height": 688,
+          "format": "jpg",
+          "bytes": 42344
+        }
+      },
+      "alt": {
+        "key": "media.home.case.wish",
+        "ko": "따뜻한 베이지 천 위의 소망 이름 반지"
+      },
+      "source": "Figma 임시 렌더",
+      "dataSlot": "home.case.wish",
+      "inUse": true
+    },
+    {
+      "slotId": "P01-05",
+      "key": "home.case.sound",
+      "pageId": "P01",
+      "position": "이름 반지 카드 ④ 소리 이름",
+      "kind": "normal",
+      "accepts": "both",
+      "acceptsVerified": true,
+      "spec": {
+        "ratio": "1.37:1",
+        "minWidth": 960,
+        "outputWidths": [
+          960,
+          1600
+        ],
+        "outputFormats": [
+          "webp",
+          "jpg"
+        ],
+        "mobileCrop": "separate-file",
+        "focus": "0.97 0.5",
+        "displayRatio": "모바일 카드 · PC 1:1"
+      },
+      "current": {
+        "pc": {
+          "url": "/media/home/case-sound-v2.jpg",
+          "width": 661,
+          "height": 481,
+          "format": "jpg",
+          "bytes": 17326
+        },
+        "mobile": {
+          "url": "/media/home/case-sound-m-v3.jpg",
+          "width": 946,
+          "height": 688,
+          "format": "jpg",
+          "bytes": 39087
+        }
+      },
+      "alt": {
+        "key": "media.home.case.sound",
+        "ko": "회청색 천 위의 소리 이름 반지"
+      },
+      "source": "Figma 임시 렌더",
+      "dataSlot": "home.case.sound",
+      "inUse": true
+    },
+    {
+      "slotId": "P01-06",
+      "key": "home.story.bg",
+      "pageId": "P01",
+      "position": "이름 이야기 칸 · 모바일 글 뒤 바탕",
+      "kind": "background",
+      "accepts": "both",
+      "acceptsVerified": true,
+      "spec": {
+        "ratio": "4:5",
+        "minWidth": 960,
+        "outputWidths": [
+          960,
+          1600
+        ],
+        "outputFormats": [
+          "webp",
+          "jpg"
+        ],
+        "mobileCrop": "same",
+        "focus": "center"
+      },
+      "current": {
+        "pc": {
+          "url": "/media/home/story-bg.jpg",
+          "width": 928,
+          "height": 1152,
+          "format": "jpg",
+          "bytes": 86744
+        }
+      },
+      "alt": {
+        "key": "media.home.story.bg",
+        "ko": "옅은 종이 질감 바탕"
+      },
+      "source": "Figma 임시 렌더",
+      "dataSlot": "home.story.bg",
+      "inUse": true
+    },
+    {
+      "slotId": "P01-07",
+      "key": "home.story",
+      "pageId": "P01",
+      "position": "이름 이야기 칸 · PC 오른쪽 사진",
+      "kind": "normal",
+      "accepts": "both",
+      "acceptsVerified": true,
+      "spec": {
+        "ratio": "1:1",
+        "minWidth": 960,
+        "outputWidths": [
+          960,
+          1600
+        ],
+        "outputFormats": [
+          "webp",
+          "jpg"
+        ],
+        "mobileCrop": "same",
+        "focus": "center"
+      },
+      "current": {
+        "pc": {
+          "url": "/media/home/story.jpg",
+          "width": 880,
+          "height": 880,
+          "format": "jpg",
+          "bytes": 24430
+        }
+      },
+      "alt": {
+        "key": "media.home.storyImage",
+        "ko": "청록 빛 아래 가까이에서 본 이름 반지"
+      },
+      "source": "Figma 임시 렌더",
+      "dataSlot": "home.story",
+      "inUse": true
+    },
+    {
+      "slotId": "P02-01",
+      "key": "rings.hero",
+      "pageId": "P02",
+      "position": "/rings 첫 화면 큰 사진",
+      "paths": [
+        "/rings"
+      ],
+      "kind": "normal",
+      "accepts": "both",
+      "acceptsVerified": true,
+      "spec": {
+        "ratio": "1:1",
+        "minWidth": 1600,
+        "outputWidths": [
+          960,
+          1600
+        ],
+        "outputFormats": [
+          "webp",
+          "jpg"
+        ],
+        "mobileCrop": "same",
+        "focus": "center"
+      },
+      "current": {
+        "pc": {
+          "url": "/media/rings/hero.jpg",
+          "width": 880,
+          "height": 880,
+          "format": "jpg",
+          "bytes": 47460
+        }
+      },
+      "alt": {
+        "key": "media.rings.hero",
+        "ko": "청록 상자에 담긴 은색 자음 부품 여섯 개"
+      },
+      "source": "Figma 임시 렌더",
+      "dataSlot": "rings.hero",
+      "inUse": true
+    },
+    {
+      "slotId": "P02-02",
+      "key": "rings.featured.mine",
+      "pageId": "P02",
+      "position": "/rings 추천 카드 ① 그대 이름",
+      "paths": [
+        "/rings"
+      ],
+      "kind": "normal",
+      "accepts": "both",
+      "acceptsVerified": true,
+      "spec": {
+        "ratio": "1:1",
+        "minWidth": 960,
+        "outputWidths": [
+          960,
+          1600
+        ],
+        "outputFormats": [
+          "webp",
+          "jpg"
+        ],
+        "mobileCrop": "same",
+        "focus": "center"
+      },
+      "current": {
+        "pc": {
+          "url": "/media/rings/featured-mine.jpg",
+          "width": 320,
+          "height": 320,
+          "format": "jpg",
+          "bytes": 6297
+        }
+      },
+      "alt": {
+        "key": "media.rings.featured.mine",
+        "ko": "회색 바탕에서 두 각도로 본 그대 이름 반지"
+      },
+      "source": "Figma 임시 렌더",
+      "dataSlot": "rings.featured.mine",
+      "inUse": true
+    },
+    {
+      "slotId": "P02-03",
+      "key": "rings.featured.ours",
+      "pageId": "P02",
+      "position": "/rings 추천 카드 ② 우리 이름",
+      "paths": [
+        "/rings"
+      ],
+      "kind": "normal",
+      "accepts": "both",
+      "acceptsVerified": true,
+      "spec": {
+        "ratio": "4:5",
+        "minWidth": 960,
+        "outputWidths": [
+          960,
+          1600
+        ],
+        "outputFormats": [
+          "webp",
+          "jpg"
+        ],
+        "mobileCrop": "same",
+        "focus": "center"
+      },
+      "current": {
+        "pc": {
+          "url": "/media/rings/featured-ours.jpg",
+          "width": 1080,
+          "height": 1350,
+          "format": "jpg",
+          "bytes": 20860
+        }
+      },
+      "alt": {
+        "key": "media.rings.featured.ours",
+        "ko": "회색 바탕의 우리 이름 반지"
+      },
+      "source": "Figma 임시 렌더",
+      "dataSlot": "rings.featured.ours",
+      "inUse": true
+    },
+    {
+      "slotId": "P02-04",
+      "key": "rings.featured.wish",
+      "pageId": "P02",
+      "position": "/rings 추천 카드 ③ 소망 이름",
+      "paths": [
+        "/rings"
+      ],
+      "kind": "normal",
+      "accepts": "both",
+      "acceptsVerified": true,
+      "spec": {
+        "ratio": "4:5",
+        "minWidth": 960,
+        "outputWidths": [
+          960,
+          1600
+        ],
+        "outputFormats": [
+          "webp",
+          "jpg"
+        ],
+        "mobileCrop": "same",
+        "focus": "center"
+      },
+      "current": {
+        "pc": {
+          "url": "/media/rings/featured-wish.jpg",
+          "width": 1080,
+          "height": 1350,
+          "format": "jpg",
+          "bytes": 22240
+        },
+        "sharedWith": [
+          "rings.featured.sound"
+        ]
+      },
+      "alt": {
+        "key": "media.rings.featured.wish",
+        "ko": "회색 바탕의 소망 이름 반지"
+      },
+      "source": "Figma 임시 렌더",
+      "dataSlot": "rings.featured.wish",
+      "inUse": true
+    },
+    {
+      "slotId": "P02-05",
+      "key": "rings.featured.sound",
+      "pageId": "P02",
+      "position": "/rings 추천 카드 ④ 소리 이름",
+      "paths": [
+        "/rings"
+      ],
+      "kind": "normal",
+      "accepts": "both",
+      "acceptsVerified": true,
+      "spec": {
+        "ratio": "4:5",
+        "minWidth": 960,
+        "outputWidths": [
+          960,
+          1600
+        ],
+        "outputFormats": [
+          "webp",
+          "jpg"
+        ],
+        "mobileCrop": "same",
+        "focus": "center"
+      },
+      "current": {
+        "pc": {
+          "url": "/media/rings/featured-wish.jpg",
+          "width": 1080,
+          "height": 1350,
+          "format": "jpg",
+          "bytes": 22240
+        },
+        "sharedWith": [
+          "rings.featured.wish"
+        ]
+      },
+      "alt": {
+        "key": "media.rings.featured.sound",
+        "ko": "회색 바탕의 소리 이름 반지"
+      },
+      "source": "Figma 임시 렌더",
+      "dataSlot": "rings.featured.sound",
+      "inUse": true,
+      "note": "소망 카드와 같은 파일(featured-wish.jpg)"
+    },
+    {
+      "slotId": "P02-06",
+      "key": "rings.list.single",
+      "pageId": "P02",
+      "position": "/rings/all · /search 목록 카드 · 단품",
+      "paths": [
+        "/rings/all",
+        "/search"
+      ],
+      "kind": "normal",
+      "accepts": "both",
+      "acceptsVerified": true,
+      "spec": {
+        "ratio": "1:1",
+        "minWidth": 960,
+        "outputWidths": [
+          960,
+          1600
+        ],
+        "outputFormats": [
+          "webp",
+          "jpg"
+        ],
+        "mobileCrop": "same",
+        "focus": "center"
+      },
+      "current": {
+        "pc": {
+          "url": "/media/rings/list-single.jpg",
+          "width": 880,
+          "height": 880,
+          "format": "jpg",
+          "bytes": 24430
+        }
+      },
+      "alt": {
+        "key": "media.rings.list.single",
+        "ko": "청자색 바탕의 이름 반지"
+      },
+      "source": "Figma 임시 렌더",
+      "dataSlot": "rings.list.single",
+      "inUse": true
+    },
+    {
+      "slotId": "P02-07",
+      "key": "rings.list.couple",
+      "pageId": "P02",
+      "position": "/rings/all · /search 목록 카드 · 커플",
+      "paths": [
+        "/rings/all",
+        "/search"
+      ],
+      "kind": "normal",
+      "accepts": "both",
+      "acceptsVerified": true,
+      "spec": {
+        "ratio": "1:1",
+        "minWidth": 960,
+        "outputWidths": [
+          960,
+          1600
+        ],
+        "outputFormats": [
+          "webp",
+          "jpg"
+        ],
+        "mobileCrop": "same",
+        "focus": "center"
+      },
+      "current": {
+        "pc": {
+          "url": "/media/rings/list-couple.jpg",
+          "width": 400,
+          "height": 400,
+          "format": "jpg",
+          "bytes": 12016
+        }
+      },
+      "alt": {
+        "key": "media.rings.list.couple",
+        "ko": "짙은 청록 바탕의 커플 이름 반지 두 개"
+      },
+      "source": "Figma 임시 렌더",
+      "dataSlot": "rings.list.couple",
+      "inUse": true
+    },
+    {
+      "slotId": "P03-01",
+      "key": "ring.birth.font",
+      "pageId": "P03",
+      "position": "① 반지의 탄생 1/4 · 훈민정음 글자",
+      "kind": "normal",
+      "accepts": "image",
+      "acceptsVerified": true,
+      "spec": {
+        "ratio": "4:3",
+        "minWidth": 1600,
+        "outputWidths": [
+          960,
+          1600
+        ],
+        "outputFormats": [
+          "webp",
+          "jpg"
+        ],
+        "mobileCrop": "same",
+        "focus": "center"
+      },
+      "current": {
+        "pc": {
+          "url": "/media/ring/detail/birth-1-font.webp",
+          "width": 1600,
+          "height": 1200,
+          "format": "webp",
+          "bytes": 65758
+        }
+      },
+      "alt": {
+        "key": "media.ring.birth.font",
+        "ko": "훈민정음 글자 모양을 옮긴 큰 글씨와 반지 스케치들"
+      },
+      "source": "사용자 제공(사용자_자료\\디자인스토리\\web_상세)",
+      "dataSlot": "ring.birth.font",
+      "inUse": true
+    },
+    {
+      "slotId": "P03-02",
+      "key": "ring.birth.sketch",
+      "pageId": "P03",
+      "position": "① 반지의 탄생 2/4 · 스케치",
+      "kind": "normal",
+      "accepts": "image",
+      "acceptsVerified": true,
+      "spec": {
+        "ratio": "4:3",
+        "minWidth": 1600,
+        "outputWidths": [
+          960,
+          1600
+        ],
+        "outputFormats": [
+          "webp",
+          "jpg"
+        ],
+        "mobileCrop": "same",
+        "focus": "center"
+      },
+      "current": {
+        "pc": {
+          "url": "/media/ring/detail/birth-2-sketch.webp",
+          "width": 1600,
+          "height": 1200,
+          "format": "webp",
+          "bytes": 67234
+        }
+      },
+      "alt": {
+        "key": "media.ring.birth.sketch",
+        "ko": "붓펜과 연필로 그린 반지 디자인 스케치"
+      },
+      "source": "사용자 제공(사용자_자료\\디자인스토리\\web_상세)",
+      "dataSlot": "ring.birth.sketch",
+      "inUse": true
+    },
+    {
+      "slotId": "P03-03",
+      "key": "ring.birth.model",
+      "pageId": "P03",
+      "position": "① 반지의 탄생 3/4 · 3D 모델링",
+      "kind": "normal",
+      "accepts": "image",
+      "acceptsVerified": true,
+      "spec": {
+        "ratio": "4:3",
+        "minWidth": 1600,
+        "outputWidths": [
+          960,
+          1600
+        ],
+        "outputFormats": [
+          "webp",
+          "jpg"
+        ],
+        "mobileCrop": "same",
+        "focus": "center"
+      },
+      "current": {
+        "pc": {
+          "url": "/media/ring/detail/birth-3-model.webp",
+          "width": 1600,
+          "height": 1200,
+          "format": "webp",
+          "bytes": 63664
+        }
+      },
+      "alt": {
+        "key": "media.ring.birth.model",
+        "ko": "컴퓨터 화면의 3D 모델링 프로그램에 띄운 이름 반지"
+      },
+      "source": "사용자 제공(사용자_자료\\디자인스토리\\web_상세)",
+      "dataSlot": "ring.birth.model",
+      "inUse": true
+    },
+    {
+      "slotId": "P03-04",
+      "key": "ring.birth.complete",
+      "pageId": "P03",
+      "position": "① 반지의 탄생 4/4 · 완성",
+      "kind": "normal",
+      "accepts": "image",
+      "acceptsVerified": true,
+      "spec": {
+        "ratio": "11:7",
+        "minWidth": 1600,
+        "outputWidths": [
+          960,
+          1600
+        ],
+        "outputFormats": [
+          "webp",
+          "jpg"
+        ],
+        "mobileCrop": "same",
+        "focus": "center"
+      },
+      "current": {
+        "pc": {
+          "url": "/media/ring/detail/birth-4-complete.webp",
+          "width": 1320,
+          "height": 840,
+          "format": "webp",
+          "bytes": 25070
+        }
+      },
+      "alt": {
+        "key": "media.ring.birth.complete",
+        "ko": "천 위에 놓인 완성된 은 이름 반지"
+      },
+      "source": "사용자 제공(사용자_자료\\디자인스토리\\web_상세)",
+      "dataSlot": "ring.birth.complete",
+      "inUse": true
+    },
+    {
+      "slotId": "P03-05",
+      "key": "ring.angle.1",
+      "pageId": "P03",
+      "position": "② 여러 각도에서 1/8(밀어서 넘기기)",
+      "kind": "normal",
+      "accepts": "image",
+      "acceptsVerified": true,
+      "spec": {
+        "ratio": "1:1",
+        "minWidth": 960,
+        "outputWidths": [
+          960,
+          1600
+        ],
+        "outputFormats": [
+          "webp",
+          "jpg"
+        ],
+        "mobileCrop": "same",
+        "focus": "center"
+      },
+      "current": {
+        "pc": {
+          "url": "/media/ring/detail/angle-1.webp",
+          "width": 960,
+          "height": 960,
+          "format": "webp",
+          "bytes": 23352
+        }
+      },
+      "alt": {
+        "key": "media.ring.angle.1",
+        "ko": "은 이름 반지를 돌려 가며 본 모습 1 / 8"
+      },
+      "source": "사용자 턴테이블 렌더 8장(상세_여러각도)",
+      "dataSlot": "ring.angle.1",
+      "inUse": true
+    },
+    {
+      "slotId": "P03-06",
+      "key": "ring.angle.2",
+      "pageId": "P03",
+      "position": "② 여러 각도에서 2/8(밀어서 넘기기)",
+      "kind": "normal",
+      "accepts": "image",
+      "acceptsVerified": true,
+      "spec": {
+        "ratio": "1:1",
+        "minWidth": 960,
+        "outputWidths": [
+          960,
+          1600
+        ],
+        "outputFormats": [
+          "webp",
+          "jpg"
+        ],
+        "mobileCrop": "same",
+        "focus": "center"
+      },
+      "current": {
+        "pc": {
+          "url": "/media/ring/detail/angle-2.webp",
+          "width": 960,
+          "height": 960,
+          "format": "webp",
+          "bytes": 18238
+        }
+      },
+      "alt": {
+        "key": "media.ring.angle.2",
+        "ko": "은 이름 반지를 돌려 가며 본 모습 2 / 8"
+      },
+      "source": "사용자 턴테이블 렌더 8장(상세_여러각도)",
+      "dataSlot": "ring.angle.2",
+      "inUse": true
+    },
+    {
+      "slotId": "P03-07",
+      "key": "ring.angle.3",
+      "pageId": "P03",
+      "position": "② 여러 각도에서 3/8(밀어서 넘기기)",
+      "kind": "normal",
+      "accepts": "image",
+      "acceptsVerified": true,
+      "spec": {
+        "ratio": "1:1",
+        "minWidth": 960,
+        "outputWidths": [
+          960,
+          1600
+        ],
+        "outputFormats": [
+          "webp",
+          "jpg"
+        ],
+        "mobileCrop": "same",
+        "focus": "center"
+      },
+      "current": {
+        "pc": {
+          "url": "/media/ring/detail/angle-3.webp",
+          "width": 960,
+          "height": 960,
+          "format": "webp",
+          "bytes": 21608
+        }
+      },
+      "alt": {
+        "key": "media.ring.angle.3",
+        "ko": "은 이름 반지를 돌려 가며 본 모습 3 / 8"
+      },
+      "source": "사용자 턴테이블 렌더 8장(상세_여러각도)",
+      "dataSlot": "ring.angle.3",
+      "inUse": true
+    },
+    {
+      "slotId": "P03-08",
+      "key": "ring.angle.4",
+      "pageId": "P03",
+      "position": "② 여러 각도에서 4/8(밀어서 넘기기)",
+      "kind": "normal",
+      "accepts": "image",
+      "acceptsVerified": true,
+      "spec": {
+        "ratio": "1:1",
+        "minWidth": 960,
+        "outputWidths": [
+          960,
+          1600
+        ],
+        "outputFormats": [
+          "webp",
+          "jpg"
+        ],
+        "mobileCrop": "same",
+        "focus": "center"
+      },
+      "current": {
+        "pc": {
+          "url": "/media/ring/detail/angle-4.webp",
+          "width": 960,
+          "height": 960,
+          "format": "webp",
+          "bytes": 21276
+        }
+      },
+      "alt": {
+        "key": "media.ring.angle.4",
+        "ko": "은 이름 반지를 돌려 가며 본 모습 4 / 8"
+      },
+      "source": "사용자 턴테이블 렌더 8장(상세_여러각도)",
+      "dataSlot": "ring.angle.4",
+      "inUse": true
+    },
+    {
+      "slotId": "P03-09",
+      "key": "ring.angle.5",
+      "pageId": "P03",
+      "position": "② 여러 각도에서 5/8(밀어서 넘기기)",
+      "kind": "normal",
+      "accepts": "image",
+      "acceptsVerified": true,
+      "spec": {
+        "ratio": "1:1",
+        "minWidth": 960,
+        "outputWidths": [
+          960,
+          1600
+        ],
+        "outputFormats": [
+          "webp",
+          "jpg"
+        ],
+        "mobileCrop": "same",
+        "focus": "center"
+      },
+      "current": {
+        "pc": {
+          "url": "/media/ring/detail/angle-5.webp",
+          "width": 960,
+          "height": 960,
+          "format": "webp",
+          "bytes": 21658
+        }
+      },
+      "alt": {
+        "key": "media.ring.angle.5",
+        "ko": "은 이름 반지를 돌려 가며 본 모습 5 / 8"
+      },
+      "source": "사용자 턴테이블 렌더 8장(상세_여러각도)",
+      "dataSlot": "ring.angle.5",
+      "inUse": true
+    },
+    {
+      "slotId": "P03-10",
+      "key": "ring.angle.6",
+      "pageId": "P03",
+      "position": "② 여러 각도에서 6/8(밀어서 넘기기)",
+      "kind": "normal",
+      "accepts": "image",
+      "acceptsVerified": true,
+      "spec": {
+        "ratio": "1:1",
+        "minWidth": 960,
+        "outputWidths": [
+          960,
+          1600
+        ],
+        "outputFormats": [
+          "webp",
+          "jpg"
+        ],
+        "mobileCrop": "same",
+        "focus": "center"
+      },
+      "current": {
+        "pc": {
+          "url": "/media/ring/detail/angle-6.webp",
+          "width": 960,
+          "height": 960,
+          "format": "webp",
+          "bytes": 18152
+        }
+      },
+      "alt": {
+        "key": "media.ring.angle.6",
+        "ko": "은 이름 반지를 돌려 가며 본 모습 6 / 8"
+      },
+      "source": "사용자 턴테이블 렌더 8장(상세_여러각도)",
+      "dataSlot": "ring.angle.6",
+      "inUse": true
+    },
+    {
+      "slotId": "P03-11",
+      "key": "ring.angle.7",
+      "pageId": "P03",
+      "position": "② 여러 각도에서 7/8(밀어서 넘기기)",
+      "kind": "normal",
+      "accepts": "image",
+      "acceptsVerified": true,
+      "spec": {
+        "ratio": "1:1",
+        "minWidth": 960,
+        "outputWidths": [
+          960,
+          1600
+        ],
+        "outputFormats": [
+          "webp",
+          "jpg"
+        ],
+        "mobileCrop": "same",
+        "focus": "center"
+      },
+      "current": {
+        "pc": {
+          "url": "/media/ring/detail/angle-7.webp",
+          "width": 960,
+          "height": 960,
+          "format": "webp",
+          "bytes": 23846
+        }
+      },
+      "alt": {
+        "key": "media.ring.angle.7",
+        "ko": "은 이름 반지를 돌려 가며 본 모습 7 / 8"
+      },
+      "source": "사용자 턴테이블 렌더 8장(상세_여러각도)",
+      "dataSlot": "ring.angle.7",
+      "inUse": true
+    },
+    {
+      "slotId": "P03-12",
+      "key": "ring.angle.8",
+      "pageId": "P03",
+      "position": "② 여러 각도에서 8/8(밀어서 넘기기)",
+      "kind": "normal",
+      "accepts": "image",
+      "acceptsVerified": true,
+      "spec": {
+        "ratio": "1:1",
+        "minWidth": 960,
+        "outputWidths": [
+          960,
+          1600
+        ],
+        "outputFormats": [
+          "webp",
+          "jpg"
+        ],
+        "mobileCrop": "same",
+        "focus": "center"
+      },
+      "current": {
+        "pc": {
+          "url": "/media/ring/detail/angle-8.webp",
+          "width": 960,
+          "height": 960,
+          "format": "webp",
+          "bytes": 24362
+        }
+      },
+      "alt": {
+        "key": "media.ring.angle.8",
+        "ko": "은 이름 반지를 돌려 가며 본 모습 8 / 8"
+      },
+      "source": "사용자 턴테이블 렌더 8장(상세_여러각도)",
+      "dataSlot": "ring.angle.8",
+      "inUse": true
+    },
+    {
+      "slotId": "P03-13",
+      "key": "ring.preview",
+      "pageId": "P03",
+      "position": "(지금 화면에 안 쓰임 · 예비) 3D 미리보기 포스터 자리",
+      "kind": "normal",
+      "accepts": "image",
+      "acceptsVerified": true,
+      "spec": {
+        "ratio": "1:1",
+        "minWidth": 960,
+        "outputWidths": [
+          960,
+          1600
+        ],
+        "outputFormats": [
+          "webp",
+          "jpg"
+        ],
+        "mobileCrop": "same",
+        "focus": "center"
+      },
+      "current": {
+        "pc": {
+          "url": "/media/ring/preview.jpg",
+          "width": 600,
+          "height": 600,
+          "format": "jpg",
+          "bytes": 9556
+        },
+        "sharedWith": [
+          "cart.line"
+        ]
+      },
+      "alt": {
+        "key": "media.ring.preview",
+        "ko": "실버925 이름 반지 미리보기 · 두 자음 부품을 맞물린 반지"
+      },
+      "source": "Figma 임시 렌더",
+      "dataSlot": "ring.preview",
+      "inUse": false
+    },
+    {
+      "slotId": "P03-14",
+      "key": "ring.story",
+      "pageId": "P03",
+      "position": "(지금 화면에 안 쓰임 · 예비) 옛 디자인 스토리 사진",
+      "kind": "normal",
+      "accepts": "image",
+      "acceptsVerified": true,
+      "spec": {
+        "ratio": "1:1",
+        "minWidth": 960,
+        "outputWidths": [
+          960,
+          1600
+        ],
+        "outputFormats": [
+          "webp",
+          "jpg"
+        ],
+        "mobileCrop": "same",
+        "focus": "center"
+      },
+      "current": {
+        "pc": {
+          "url": "/media/ring/story.jpg",
+          "width": 880,
+          "height": 880,
+          "format": "jpg",
+          "bytes": 23081
+        }
+      },
+      "alt": {
+        "key": "media.ring.story",
+        "ko": "실버925 이름 반지를 가까이에서 본 모습"
+      },
+      "source": "Figma 임시 렌더",
+      "dataSlot": "ring.story",
+      "inUse": false
+    },
+    {
+      "slotId": "P04-01",
+      "key": "about.hero",
+      "pageId": "P04",
+      "position": "첫 화면 큰 사진",
+      "kind": "normal",
+      "accepts": "both",
+      "acceptsVerified": true,
+      "spec": {
+        "ratio": "11:7",
+        "minWidth": 1600,
+        "outputWidths": [
+          960,
+          1600
+        ],
+        "outputFormats": [
+          "webp",
+          "jpg"
+        ],
+        "mobileCrop": "same",
+        "focus": "center"
+      },
+      "current": {
+        "pc": {
+          "url": "/media/about/hero.jpg",
+          "width": 1320,
+          "height": 840,
+          "format": "jpg",
+          "bytes": 47152
+        }
+      },
+      "alt": {
+        "key": "media.about.hero",
+        "ko": "회색빛 리넨 위에 세워 둔 이름 반지"
+      },
+      "source": "Figma 임시 렌더",
+      "dataSlot": "about.hero",
+      "inUse": true
+    },
+    {
+      "slotId": "P04-02",
+      "key": "about.design",
+      "pageId": "P04",
+      "position": "02 디자인 스토리 사진",
+      "kind": "normal",
+      "accepts": "both",
+      "acceptsVerified": true,
+      "spec": {
+        "ratio": "11:7",
+        "minWidth": 960,
+        "outputWidths": [
+          960,
+          1600
+        ],
+        "outputFormats": [
+          "webp",
+          "jpg"
+        ],
+        "mobileCrop": "same",
+        "focus": "center"
+      },
+      "current": {
+        "pc": {
+          "url": "/media/about/design.jpg",
+          "width": 1320,
+          "height": 840,
+          "format": "jpg",
+          "bytes": 49450
+        }
+      },
+      "alt": {
+        "key": "media.about.design",
+        "ko": "베이지 리넨 위의 이름 반지 · 두 초성 사이의 작은 다이아몬드"
+      },
+      "source": "Figma 임시 렌더",
+      "dataSlot": "about.design",
+      "inUse": true
+    },
+    {
+      "slotId": "P04-03",
+      "key": "about.tile.workshop",
+      "pageId": "P04",
+      "position": "04 만드는 방식 타일 1/4",
+      "kind": "normal",
+      "accepts": "both",
+      "acceptsVerified": true,
+      "spec": {
+        "ratio": "1:1",
+        "minWidth": 960,
+        "outputWidths": [
+          960,
+          1600
+        ],
+        "outputFormats": [
+          "webp",
+          "jpg"
+        ],
+        "mobileCrop": "same",
+        "focus": "center"
+      },
+      "current": {
+        "pc": {
+          "url": "/media/about/tile-workshop.jpg",
+          "width": 320,
+          "height": 320,
+          "format": "jpg",
+          "bytes": 6297
+        }
+      },
+      "alt": {
+        "key": "media.about.tile.workshop",
+        "ko": "두 각도에서 본 이름 반지"
+      },
+      "source": "Figma 임시 렌더",
+      "dataSlot": "about.tile.workshop",
+      "inUse": true
+    },
+    {
+      "slotId": "P04-04",
+      "key": "about.tile.diamond",
+      "pageId": "P04",
+      "position": "04 만드는 방식 타일 2/4",
+      "kind": "normal",
+      "accepts": "both",
+      "acceptsVerified": true,
+      "spec": {
+        "ratio": "4:5",
+        "minWidth": 960,
+        "outputWidths": [
+          960,
+          1600
+        ],
+        "outputFormats": [
+          "webp",
+          "jpg"
+        ],
+        "mobileCrop": "same",
+        "focus": "center"
+      },
+      "current": {
+        "pc": {
+          "url": "/media/about/tile-diamond.jpg",
+          "width": 720,
+          "height": 900,
+          "format": "jpg",
+          "bytes": 11668
+        }
+      },
+      "alt": {
+        "key": "media.about.tile.diamond",
+        "ko": "초성 옆에 작은 보석이 앉은 이름 반지"
+      },
+      "source": "Figma 임시 렌더",
+      "dataSlot": "about.tile.diamond",
+      "inUse": true
+    },
+    {
+      "slotId": "P04-05",
+      "key": "about.tile.material",
+      "pageId": "P04",
+      "position": "04 만드는 방식 타일 3/4",
+      "kind": "normal",
+      "accepts": "both",
+      "acceptsVerified": true,
+      "spec": {
+        "ratio": "4:5",
+        "minWidth": 960,
+        "outputWidths": [
+          960,
+          1600
+        ],
+        "outputFormats": [
+          "webp",
+          "jpg"
+        ],
+        "mobileCrop": "same",
+        "focus": "center"
+      },
+      "current": {
+        "pc": {
+          "url": "/media/about/tile-material.jpg",
+          "width": 720,
+          "height": 900,
+          "format": "jpg",
+          "bytes": 12597
+        }
+      },
+      "alt": {
+        "key": "media.about.tile.material",
+        "ko": "은빛으로 빛나는 이름 반지"
+      },
+      "source": "Figma 임시 렌더",
+      "dataSlot": "about.tile.material",
+      "inUse": true
+    },
+    {
+      "slotId": "P04-06",
+      "key": "about.tile.finish",
+      "pageId": "P04",
+      "position": "04 만드는 방식 타일 4/4",
+      "kind": "normal",
+      "accepts": "both",
+      "acceptsVerified": true,
+      "spec": {
+        "ratio": "4:5",
+        "minWidth": 960,
+        "outputWidths": [
+          960,
+          1600
+        ],
+        "outputFormats": [
+          "webp",
+          "jpg"
+        ],
+        "mobileCrop": "same",
+        "focus": "center"
+      },
+      "current": {
+        "pc": {
+          "url": "/media/about/tile-finish.jpg",
+          "width": 720,
+          "height": 900,
+          "format": "jpg",
+          "bytes": 13223
+        }
+      },
+      "alt": {
+        "key": "media.about.tile.finish",
+        "ko": "매끈하게 마감한 이름 반지"
+      },
+      "source": "Figma 임시 렌더",
+      "dataSlot": "about.tile.finish",
+      "inUse": true
+    },
+    {
+      "slotId": "P05-01",
+      "key": "story.ring",
+      "pageId": "P05",
+      "position": "맨 위 브랜드 메시지 반지",
+      "kind": "normal",
+      "accepts": "both",
+      "acceptsVerified": true,
+      "spec": {
+        "ratio": "3:2",
+        "minWidth": 1600,
+        "outputWidths": [
+          960,
+          1600
+        ],
+        "outputFormats": [
+          "webp",
+          "jpg"
+        ],
+        "mobileCrop": "same",
+        "focus": "center"
+      },
+      "current": {
+        "pc": {
+          "url": "/media/story/ring.jpg",
+          "width": 720,
+          "height": 474,
+          "format": "jpg",
+          "bytes": 26444
+        }
+      },
+      "alt": {
+        "key": "media.story.ring",
+        "ko": "이름이 담긴 은반지 두 개가 짙은 청록 바탕 위에 놓인 모습"
+      },
+      "source": "자체 렌더(Figma 원본 720×474)",
+      "dataSlot": "story.ring",
+      "inUse": true
+    },
+    {
+      "slotId": "P05-02",
+      "key": "story.tablet",
+      "pageId": "P05",
+      "position": "점토판(이름의 시작) 사진",
+      "kind": "normal",
+      "accepts": "both",
+      "acceptsVerified": true,
+      "spec": {
+        "ratio": "1:1",
+        "minWidth": 960,
+        "outputWidths": [
+          960,
+          1600
+        ],
+        "outputFormats": [
+          "webp",
+          "jpg"
+        ],
+        "mobileCrop": "same",
+        "focus": "center"
+      },
+      "current": {
+        "pc": {
+          "url": "/media/story/clay-tablet.jpg",
+          "width": 1600,
+          "height": 1600,
+          "format": "jpg",
+          "bytes": 188883
+        }
+      },
+      "alt": {
+        "key": "media.story.tablet",
+        "ko": "루브르 박물관의 원시 쐐기문자 점토판(AO 29562) · 칸마다 숫자와 기호가 눌러 찍혀 있다"
+      },
+      "source": "위키미디어 공용 · 사진: Precuneiform tablet · Louvre AO 29562 · Wikimedia Commons · CC BY-SA 3.0",
+      "dataSlot": "story.tablet",
+      "inUse": true
+    },
+    {
+      "slotId": "P06-01",
+      "key": "cart.line",
+      "pageId": "P06",
+      "position": "상품 줄 작은 그림(88×100)",
+      "kind": "normal",
+      "accepts": "both",
+      "acceptsVerified": true,
+      "spec": {
+        "ratio": "1:1",
+        "minWidth": 960,
+        "outputWidths": [
+          960,
+          1600
+        ],
+        "outputFormats": [
+          "webp",
+          "jpg"
+        ],
+        "mobileCrop": "same",
+        "focus": "center",
+        "displayRatio": "88:100"
+      },
+      "current": {
+        "pc": {
+          "url": "/media/ring/preview.jpg",
+          "width": 600,
+          "height": 600,
+          "format": "jpg",
+          "bytes": 9556
+        },
+        "sharedWith": [
+          "ring.preview"
+        ]
+      },
+      "alt": {
+        "key": "media.cart.line",
+        "ko": "장바구니에 담은 실버925 이름 반지"
+      },
+      "source": "ring.preview와 같은 파일(Figma 임시 렌더)",
+      "dataSlot": "cart.line",
+      "inUse": true,
+      "note": "ring.preview 파일을 같이 씀"
+    },
+    {
+      "slotId": "P07-01",
+      "key": "seo.og.default",
+      "pageId": "P07",
+      "position": "공유 미리보기 기본 그림(1200×630)",
+      "kind": "share",
+      "accepts": "image",
+      "acceptsVerified": true,
+      "spec": {
+        "ratio": "1.91:1",
+        "minWidth": 1200,
+        "outputWidths": [
+          960,
+          1600
+        ],
+        "outputFormats": [
+          "jpg"
+        ],
+        "mobileCrop": "same",
+        "focus": "center",
+        "displayRatio": "1200:630"
+      },
+      "current": {
+        "pc": {
+          "url": "/media/og/default.png",
+          "width": 1200,
+          "height": 630,
+          "format": "png",
+          "bytes": 14008
+        }
+      },
+      "alt": {
+        "key": "media.seo.og.default",
+        "ko": "eereum 로고 · 한글 이름 반지"
+      },
+      "source": "임시 그림(로고만)",
+      "dataSlot": "seo.og.default",
+      "inUse": true
+    },
+    {
+      "slotId": "P08-01",
+      "key": "dev.sample",
+      "pageId": "P08",
+      "position": "견본 칸(로고)",
+      "kind": "normal",
+      "accepts": "both",
+      "acceptsVerified": true,
+      "spec": {
+        "ratio": "4.55:1",
+        "minWidth": 960,
+        "outputWidths": [
+          960,
+          1600
+        ],
+        "outputFormats": [
+          "webp",
+          "jpg"
+        ],
+        "mobileCrop": "same",
+        "focus": "center"
+      },
+      "current": {
+        "pc": {
+          "url": "/brand/logo.svg",
+          "width": 91,
+          "height": 20,
+          "format": "svg",
+          "bytes": 10131
+        }
+      },
+      "alt": {
+        "key": "media.dev.sample",
+        "ko": "eereum 로고 (견본 이미지)"
+      },
+      "source": "로고 svg",
+      "dataSlot": "dev.sample",
+      "inUse": true
+    }
+  ]
+}
