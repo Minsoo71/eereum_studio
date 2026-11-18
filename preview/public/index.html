@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>미리보기 · eereum 스튜디오</title>
+  <link rel="stylesheet" href="preview.css">
+</head>
+<body>
+  <header class="bar">
+    <h1>미리보기</h1>
+    <div class="group" role="group" aria-label="보기">
+      <span class="label">보기</span>
+      <div class="seg" id="view">
+        <button data-v="phone" aria-pressed="true">휴대폰</button>
+        <button data-v="pc" aria-pressed="false">PC</button>
+        <button data-v="both" aria-pressed="false">둘 다</button>
+      </div>
+    </div>
+    <div class="group" role="group" aria-label="언어">
+      <span class="label">언어</span>
+      <div class="seg" id="locale">
+        <button data-l="ko" aria-pressed="true">한국어</button>
+        <button data-l="en" aria-pressed="false">EN</button>
+        <button data-l="ja" aria-pressed="false">日本語</button>
+        <button data-l="zh-hans" aria-pressed="false">简体</button>
+        <button data-l="zh-hant" aria-pressed="false">繁體</button>
+      </div>
+    </div>
+    <label class="group"><span class="label">페이지</span><select id="page"></select></label>
+    <div class="group" role="group" aria-label="비교">
+      <span class="label">비교</span>
+      <div class="seg" id="compare">
+        <button data-c="off" aria-pressed="true">공개본만</button>
+        <button data-c="on" aria-pressed="false">공개본 | 수정안</button>
+      </div>
+      <select id="variant" disabled aria-label="수정안(열린 PR · 브랜치)"></select>
+    </div>
+    <div class="status" aria-live="polite"><span class="dot" id="dot"></span><span id="status">연결 중…</span></div>
+  </header>
+
+  <div class="slotbar">
+    <span class="label-dark">이 화면의 칸</span>
+    <div id="slots" class="chips"></div>
+    <span id="toast" class="toast" role="status" aria-live="polite"></span>
+  </div>
+
+  <main id="stage" class="stage"></main>
+
+  <script type="module" src="preview.js"></script>
+</body>
+</html>
