@@ -4,10 +4,12 @@
   "version": "0.1.0",
   "description": "eereum 이미지 교체 스튜디오 (내 컴퓨터 전용 도우미 · 공개 사이트에 배포하지 않음 · 쇼핑몰 저장소와 따로)",
   "type": "module",
-  "engines": { "node": ">=26" },
+  "engines": {
+    "node": ">=26"
+  },
   "scripts": {
     "start": "node server/index.mjs",
-    "test": "node --test test/*.test.mjs"
+    "test": "node --test test/*.test.mjs test/preview/*.test.mjs"
   },
   "dependencies": {
     "sharp": "0.35.5"

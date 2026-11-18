@@ -9,8 +9,10 @@ import { pathToFileURL, fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { config } from './config.mjs';
 import { emit } from './events.mjs';
+import { createSiteProxy } from '../preview/proxy.mjs';
 
 let web = null;
+let proxy = null;
 let state = 'stopped';
 const tail = [];
 
@@ -35,11 +37,17 @@ export function startSite() {
   state = 'starting';
   emit('helper.status', { site: 'starting' });
   const nextBin = path.join(config.web, 'node_modules/next/dist/bin/next');
-  web = spawn(process.execPath, [nextBin, 'dev', '--hostname', 'localhost', '--port', String(config.ports.site)], { cwd: config.web, env: siteEnv(), windowsHide: true });
+  web = spawn(process.execPath, [nextBin, 'dev', '--hostname', 'localhost', '--port', String(config.ports.siteDev)], { cwd: config.web, env: siteEnv(), windowsHide: true });
   const onLine = (b) => {
     const s = b.toString();
     tail.push(s); if (tail.length > 50) tail.shift();
-    if (state !== 'ready' && /Ready in|ready started|Local:/i.test(s)) { state = 'ready'; emit('helper.status', { site: 'ready' }); }
+    if (state === 'starting' && /Ready in|ready started|Local:/i.test(s)) {
+      state = 'proxy';
+      // 중계 4301 → next dev 4351 (사본 HTML에 미리보기 연결 스크립트 끼움 · PC11 preview/proxy.mjs)
+      createSiteProxy({ listenPort: config.ports.site, targetPort: config.ports.siteDev, parentOrigin: config.helperOrigin })
+        .then((p) => { proxy = p; state = 'ready'; emit('helper.status', { site: 'ready' }); })
+        .catch((e) => { state = 'failed'; emit('helper.status', { site: 'failed', message: `중계(${config.ports.site})를 못 켬: ${e.code ?? e.message}` }); });
+    }
   };
   web.stdout.on('data', onLine);
   web.stderr.on('data', onLine);
@@ -47,6 +55,7 @@ export function startSite() {
 }
 
 export function stopSite() {
+  proxy?.close().catch(() => {}); proxy = null;
   if (web) { web.kill(); web = null; }
   api?.kill(); api = null;
   if (db) stopData();

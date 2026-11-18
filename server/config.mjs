@@ -14,7 +14,7 @@ export const config = {
   /** 이 컴퓨터 이름(상태 파일 · 요청에 적음) */
   machine: env.STUDIO_MACHINE ?? os.hostname(),
   /** 포트(모두 localhost만) */
-  ports: { helper: 4300, site: 4301, variant: 4302, api: 4311 },
+  ports: { helper: 4300, site: 4301, variant: 4302, siteDev: 4351, variantDev: 4352, api: 4311 }, // 4301 · 4302 = 중계(bridge 끼움 · PC11) → next dev 4351 · 4352
 };
 config.site = env.STUDIO_SITE ?? path.join(config.root, 'site');
 config.web = path.join(config.site, 'apps/web');
@@ -30,6 +30,8 @@ config.dirs = {
 };
 /** 사본 주소(창은 localhost로만 엶 · 127.0.0.1이면 Next 개발 서버가 HMR 거부) */
 config.siteOrigin = `http://localhost:${config.ports.site}`;
+config.variantOrigin = `http://localhost:${config.ports.variant}`;
+config.helperOrigin = `http://localhost:${config.ports.helper}`;
 /** 놓을 수 있는 파일 */
 config.limits = {
   imageBytes: 40 * 1024 * 1024,

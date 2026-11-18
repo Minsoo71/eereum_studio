@@ -1,6 +1,7 @@
-# 신호 약속 · 대장 창 ↔ 도우미 ↔ 미리보기 창 (약속 v1.1 · PC9 · 2026-11-18)
+# 신호 약속 · 대장 창 ↔ 도우미 ↔ 미리보기 창 (약속 v1.2 · PC9 · 2026-11-18)
 
 > v1.1 바뀐 점(11-18 · 1단계): ① 놓기 = 한 번(`POST /api/drop?key=&target=` · 몸통 = 파일 그대로 · 머리 `x-file-name`) — v1의 upload + drop 두 번을 합침 ② `slot.updated`에 `urls: { pc, mobile, video }` · `warnings` 추가 ③ `slot.selected`에 `paths` 추가(그 칸이 보이는 주소) ④ 명령 주소 = `POST /api/<명령>` 그대로
+> v1.2 바뀐 점(11-18 18:00 통합): 오류 신호 이름 `error` → **`helper.error`**(EventSource는 이름이 `error`인 신호를 연결 끊김과 구별하지 못함 → 미리보기 창에 "연결 끊김"이 잘못 뜸) · 미리보기 창(PC11)은 `helper.error`로 받아 주세요
 
 ## 1. 연결
 | 쪽 | 주소 |
@@ -37,7 +38,7 @@
 | `preview.locale` | `{ locale }` | 대장: 대체 글 칸을 그 언어로(있으면) |
 | `variant.changed` | `{ variant, port, state: "starting"\|"ready"\|"failed", message? }` | 미리보기: 나란히 보기 열기/닫기 |
 | `helper.status` | `{ site: "starting"\|"ready"\|"failed", repoCommit, message? }` | 두 창 위쪽 띠에 표시 |
-| `error` | `{ code, message, key? }` | 창에 짧게 표시 |
+| `helper.error` | `{ code, message, key? }` | 창에 짧게 표시 · **v1.2: 이름이 `error`면 브라우저 EventSource의 연결 끊김(onerror)과 섞여 '연결 끊김'으로 보임 → `helper.error`로 바꿈** |
 
 ## 4. 오류 코드
 | code | 뜻 |

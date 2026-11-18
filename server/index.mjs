@@ -11,6 +11,7 @@ import { inspect, forSite, thumb, StudioError } from './images.mjs';
 import { readState, ensureState, writeState } from './state.mjs';
 import { subscribe, emit, clientCount } from './events.mjs';
 import { startSite, stopSite, siteState, clearImageCache, siteLog, updateSite, startData } from './site.mjs';
+import { listVariants, createVariantRunner } from '../preview/variant.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REGISTER = path.join(HERE, '../register');
@@ -176,14 +177,15 @@ const server = http.createServer(async (req, res) => {
       if (!existsSync(f)) return send(res, 404, 'not found', 'text/plain');
       return send(res, 200, readFileSync(f), STATIC[path.extname(f)] ?? 'application/octet-stream');
     }
-    // 미리보기 창(M2 · PC11 · preview/) — 없으면 안내만
-    if (req.method === 'GET' && (url.pathname === '/preview' || url.pathname.startsWith('/preview/'))) {
-      const rel = url.pathname === '/preview' || url.pathname === '/preview/' ? 'index.html' : url.pathname.slice('/preview/'.length);
-      const f = path.join(PREVIEW, path.normalize(rel).replace(/^(\.\.[/\\])+/, ''));
-      if (f.startsWith(PREVIEW) && existsSync(f)) return send(res, 200, readFileSync(f), STATIC[path.extname(f)] ?? 'application/octet-stream');
-      if (rel === 'index.html') return send(res, 200, `<!doctype html><meta charset="utf-8"><title>미리보기 창 준비 중</title><body style="font:15px 'Noto Sans KR',sans-serif;padding:40px"><h1>미리보기 창은 준비 중이에요(PC11 · M2)</h1><p>지금은 <a href="${config.siteOrigin}" target="_blank">쇼핑몰 사본(${config.siteOrigin})</a>을 열어 확인하세요. 대장에서 그림을 놓은 뒤 사본 화면을 새로 고치면 바뀐 그림이 보여요.</p></body>`, STATIC['.html']);
-      return send(res, 404, 'not found', 'text/plain');
+    // 미리보기 창(M2 · PC11 · preview/public/) — index.html이 preview.js · preview.css를 상대 주소로 부름 → /preview.js · /preview.css
+    if (req.method === 'GET' && ['/preview', '/preview/', '/preview.js', '/preview.css'].includes(url.pathname)) {
+      const name = url.pathname.startsWith('/preview.') ? url.pathname.slice(1) : 'index.html';
+      const f = path.join(PREVIEW, 'public', name);
+      if (!existsSync(f)) return send(res, 404, 'not found', 'text/plain');
+      return send(res, 200, readFileSync(f), STATIC[path.extname(f)] ?? 'application/octet-stream');
     }
+    if (req.method === 'GET' && url.pathname === '/api/preview-config') return send(res, 200, { ok: true, siteOrigin: config.siteOrigin, variantOrigin: config.variantOrigin });
+    if (req.method === 'GET' && url.pathname === '/api/variants') return send(res, 200, { ok: true, variants: await listVariants(config.site) });
     if (req.method === 'GET' && url.pathname === '/api/events') return subscribe(req, res);
     if (req.method === 'GET' && url.pathname === '/api/status') return send(res, 200, { ok: true, site: siteState(), siteOrigin: config.siteOrigin, repoCommit: register?.source.repoCommit, machine: config.machine, clients: clientCount() });
     if (req.method === 'GET' && url.pathname === '/api/site-log') return send(res, 200, siteLog(), 'text/plain; charset=utf-8');
@@ -212,16 +214,36 @@ const server = http.createServer(async (req, res) => {
       if (cmd === 'refresh') return send(res, 200, { ok: true, ...(await rebuild('refresh')) });
       if (cmd === 'update') return send(res, 200, { ok: true, ...(await update()) });
       if (cmd === 'locale') { emit('preview.locale', { locale: data.locale }, 'preview'); return send(res, 200, { ok: true }); }
-      if (cmd === 'variant') { emit('variant.changed', { variant: data.variant ?? null, port: config.ports.variant, state: 'starting' }, data.from ?? 'preview'); return send(res, 200, { ok: true }); }
+      if (cmd === 'variant') {
+        // 수정안 보기(M6 · PC11 variant.mjs): 고른 PR 브랜치 → worktree → next dev 4352 → 중계 4302 · null이면 끔
+        if (!data.variant) { await variants.stop(); return send(res, 200, { ok: true }); }
+        const v = (await listVariants(config.site)).find((x) => x.id === data.variant);
+        if (!v) throw new StudioError('NO_VARIANT', '그 수정안(브랜치)을 찾지 못했어요.');
+        variants.start(v).catch(() => {}); // 진행은 variant.changed 신호로
+        return send(res, 200, { ok: true });
+      }
     }
     return send(res, 404, { ok: false, error: { code: 'NOT_FOUND', message: '없는 주소예요.' } });
   } catch (e) {
     const code = e instanceof StudioError ? e.code : 'INTERNAL';
     if (code === 'INTERNAL') console.error(e);
-    emit('error', { code, message: e.message });
+    emit('helper.error', { code, message: e.message }); // 'error'는 EventSource 연결 오류와 섞임(약속 v1.2)
     return send(res, code === 'INTERNAL' ? 500 : 400, { ok: false, error: { code, message: code === 'INTERNAL' ? '도우미 안에서 문제가 생겼어요.' : e.message } });
   }
 });
+
+const variants = createVariantRunner({
+  repoDir: config.site,
+  worktreeDir: path.join(config.root, 'variant'),
+  apiOrigin: `http://localhost:${config.ports.api}`,
+  sitePort: config.ports.variantDev,
+  proxyPort: config.ports.variant,
+  parentOrigin: config.helperOrigin,
+  onState: (st) => emit('variant.changed', { variant: st.variant ?? null, port: st.port ?? config.ports.variant, state: st.state, message: st.message }, 'helper'),
+});
+const stopAll = async () => { await variants.stop().catch(() => {}); stopSite(); process.exit(0); };
+process.on('SIGINT', stopAll);
+process.on('SIGTERM', stopAll);
 
 await rebuild('start');
 server.listen(config.ports.helper, '127.0.0.1', () => {

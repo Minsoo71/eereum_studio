@@ -156,7 +156,7 @@ es.addEventListener('slot.updated', async (ev) => {
 es.addEventListener('slot.selected', (ev) => { const d = JSON.parse(ev.data); if (d.from !== 'register' && d.key !== selected) select(d.key, false); });
 es.addEventListener('register.rebuilt', (ev) => { const d = JSON.parse(ev.data); if (d.reason !== 'start') load(); });
 es.addEventListener('helper.status', () => status());
-es.addEventListener('error', (ev) => { if (ev.data) { const d = JSON.parse(ev.data); if (d.message) toast(d.message, true); } });
+es.addEventListener('helper.error', (ev) => { if (ev.data) { const d = JSON.parse(ev.data); if (d.message) toast(d.message, true); } });
 
 await load();
 await status();
