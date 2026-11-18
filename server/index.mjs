@@ -217,7 +217,7 @@ const server = http.createServer(async (req, res) => {
       if (cmd === 'variant') {
         // 수정안 보기(M6 · PC11 variant.mjs): 고른 PR 브랜치 → worktree → next dev 4352 → 중계 4302 · null이면 끔
         if (!data.variant) { await variants.stop(); return send(res, 200, { ok: true }); }
-        const v = (await listVariants(config.site)).find((x) => x.id === data.variant);
+        const v = (await listVariants(config.site, { all: true })).find((x) => x.id === data.variant); // '모든 브랜치'에서 고른 것도 찾음
         if (!v) throw new StudioError('NO_VARIANT', '그 수정안(브랜치)을 찾지 못했어요.');
         variants.start(v).catch(() => {}); // 진행은 variant.changed 신호로
         return send(res, 200, { ok: true });
