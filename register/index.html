@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>eereum 이미지 스튜디오 · 대장</title>
+<link rel="stylesheet" href="/register/app.css">
+</head>
+<body>
+<header>
+  <b>eereum 이미지 스튜디오 · 대장</b>
+  <span class="pill" id="site-pill">쇼핑몰 사본 확인 중…</span>
+  <span class="pill" id="commit-pill">사이트 —</span>
+  <span class="pill" id="machine-pill">이 컴퓨터 —</span>
+  <span class="grow"></span>
+  <a class="hbtn" id="open-site" target="_blank" rel="noopener">사본 열기</a>
+  <button class="hbtn" id="update" type="button" title="사본을 GitHub 최신으로(읽기만) · 시험 그림은 다시 끼움">최신으로</button>
+  <button class="hbtn" id="refresh" type="button">대장 다시 읽기</button>
+</header>
+<nav id="pages" aria-label="페이지"></nav>
+<div class="wrap">
+  <main id="main" aria-live="polite"><p class="muted">불러오는 중…</p></main>
+  <aside id="side" aria-label="고른 칸"><p class="muted">왼쪽 표에서 칸을 고르세요.</p></aside>
+</div>
+<div id="toast" role="status" hidden></div>
+<script src="/register/app.js" type="module"></script>
+</body>
+</html>

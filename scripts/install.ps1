@@ -1,0 +1,58 @@
+# eereum 이미지 스튜디오 설치 (M4 · Windows PowerShell 5.1 · 관리자 권한 필요 없음)
+# 쓰는 법:  powershell -ExecutionPolicy Bypass -File scripts\install.ps1
+# 하는 일: ① Node 26 확인 ② 백신 인증서 설정 ③ 쇼핑몰 사본(D:\eereum_studio\site · 영문 경로 · 쇼핑몰 저장소 main · 읽기만) 준비 · 설치
+#          ④ 스튜디오(이 저장소 · D:\eereum_studio\app) 설치 ⑤ 내장 DB prisma dev 0.16.28 미리 받기(선택) ⑥ 바탕화면 "이미지 스튜디오 열기"
+# 하지 않는 일: .env 만들기 · 비밀값 · 운영 DB 접속 · 저장소에 쓰기(push)
+param(
+  [string]$Root = 'D:\eereum_studio',
+  [string]$ShopRepo = 'https://github.com/Minsoo71/eereum_ring.git',     # 읽기만(처음 한 번 GitHub 로그인으로 허락)
+  [string]$StudioRepo = 'https://github.com/Minsoo71/eereum_studio.git', # 읽기만
+  [string]$StudioBranch = 'integration',
+  [string]$Share = 'D:\Synology Drive VISCOM\eeruem\이미지교체',
+  [switch]$WithDb
+)
+$ErrorActionPreference = 'Stop'
+function Step($n, $msg) { Write-Host "[$n] $msg" -ForegroundColor Cyan }
+function GetRepo($url, $dir, $branch) {
+  if (-not (Test-Path (Join-Path $dir '.git'))) { & git clone --branch $branch $url $dir }
+  else { & git -C $dir fetch origin $branch; & git -C $dir merge --ff-only "origin/$branch" }
+}
+
+Step 1 'Node 버전 확인(26 이상)'
+$nodeVer = (& node -v) -replace '^v', ''
+if ([int]($nodeVer.Split('.')[0]) -lt 26) { throw "Node 26 이상이 필요해요(지금 $nodeVer). https://nodejs.org 에서 설치 뒤 다시." }
+if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) { & corepack enable; if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) { throw 'pnpm이 없어요. corepack enable 또는 npm i -g pnpm@10.34.9' } }
+
+Step 2 '백신 인증서(NODE_OPTIONS=--use-system-ca) 이 사용자에 저장'
+[Environment]::SetEnvironmentVariable('NODE_OPTIONS', '--use-system-ca', 'User')
+$env:NODE_OPTIONS = '--use-system-ca'
+
+Step 3 "쇼핑몰 사본 준비 · $Root\site (main)"
+New-Item -ItemType Directory -Force $Root | Out-Null
+$site = Join-Path $Root 'site'
+GetRepo $ShopRepo $site 'main'
+if (Test-Path (Join-Path $site '.env')) { Write-Warning '사본에 .env가 있어요. 스튜디오 사본에는 .env를 두지 않아요(비밀값 0).' }
+Push-Location $site; & pnpm install --frozen-lockfile; Pop-Location
+
+Step 4 "스튜디오 설치 · $Root\app ($StudioBranch)"
+$app = Join-Path $Root 'app'
+GetRepo $StudioRepo $app $StudioBranch
+Push-Location $app; & pnpm install --frozen-lockfile; Pop-Location
+
+if ($WithDb) {
+  Step 5 '내장 DB prisma dev 0.16.28 미리 받기(데이터 화면 보기용 · 인터넷 한 번)'
+  Push-Location (Join-Path $site 'packages\db')
+  & node node_modules\prisma\build\index.js dev '@0.16.28' --help | Out-Null
+  Pop-Location
+}
+
+Step 6 '공유 폴더 확인 · 바탕화면 바로 가기'
+if (-not (Test-Path $Share)) { Write-Warning "공유 폴더가 없어요: $Share (Synology Drive 동기화 · '항상 이 기기에 보관')" }
+$start = Join-Path $app 'scripts\start.ps1'
+$lnk = Join-Path ([Environment]::GetFolderPath('Desktop')) '이미지 스튜디오 열기.lnk'
+$sh = (New-Object -ComObject WScript.Shell).CreateShortcut($lnk)
+$sh.TargetPath = 'powershell.exe'
+$sh.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$start`" -Root `"$Root`" -Share `"$Share`""
+$sh.WorkingDirectory = $app
+$sh.Save()
+Write-Host "설치 끝 · 바탕화면 '이미지 스튜디오 열기'를 누르세요." -ForegroundColor Green
