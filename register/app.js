@@ -143,6 +143,12 @@ async function status() {
   const p = $('#site-pill');
   p.textContent = s.site === 'ready' ? `쇼핑몰 사본 켜짐 · ${s.siteOrigin.replace('http://', '')}` : s.site === 'starting' ? '쇼핑몰 사본 켜는 중…' : '쇼핑몰 사본 꺼짐';
   p.className = `pill ${s.site === 'ready' ? 'ok' : s.site === 'starting' ? '' : 'bad'}`;
+  // V5 S2: Synology 충돌 사본(자동으로 지우지 않음 · 사용자가 어느 쪽을 남길지 고름)
+  let warn = $('#conflicts');
+  if (!warn) { warn = document.createElement('div'); warn.id = 'conflicts'; warn.className = 'conflicts'; warn.setAttribute('role', 'alert'); $('#pages').before(warn); }
+  const c = s.conflicts ?? [];
+  warn.hidden = !c.length;
+  warn.innerHTML = c.length ? `<b>⚠ 두 컴퓨터가 같은 파일을 동시에 고쳐 충돌 사본 ${c.length}개가 생겼어요.</b> 자동으로 지우지 않아요 — 어느 쪽을 남길지 PC9에게 알려 주세요.<ul>${c.map((x) => `<li><code>이미지교체/${esc(x)}</code></li>`).join('')}</ul>` : '';
 }
 
 const es = new EventSource('/api/events');

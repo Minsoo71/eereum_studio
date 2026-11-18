@@ -31,3 +31,15 @@ test('칸 ID가 바뀌면(구역 이동) 같은 파일에 slotId만 고침', () 
   assert.equal(s.slotId, 'P01-02');
   assert.equal(s.revision, before + 1);
 });
+
+test('V5 S2: Synology 충돌 사본을 찾음(지우지 않음)', async () => {
+  const { writeFileSync, mkdirSync, existsSync } = await import('node:fs');
+  const { findConflicts } = await import('../server/state.mjs');
+  const st = path.join(process.env.STUDIO_SHARE, '_상태');
+  writeFileSync(path.join(st, 'home.hero (Conflict 2026-11-19).json'), '{}');
+  mkdirSync(path.join(process.env.STUDIO_SHARE, '요청'), { recursive: true });
+  writeFileSync(path.join(process.env.STUDIO_SHARE, '요청', 'P01-01_20261119-0300_a_충돌.jpg'), 'x');
+  const c = findConflicts();
+  assert.deepEqual(c, ['_상태/home.hero (Conflict 2026-11-19).json', '요청/P01-01_20261119-0300_a_충돌.jpg']);
+  assert.ok(existsSync(path.join(st, 'home.hero (Conflict 2026-11-19).json')));
+});

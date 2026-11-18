@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { config } from './config.mjs';
 import { buildSlots, diffSlots } from './slots.mjs';
 import { inspect, forSite, thumb, StudioError } from './images.mjs';
-import { readState, ensureState, writeState } from './state.mjs';
+import { readState, ensureState, writeState, findConflicts } from './state.mjs';
 import { subscribe, emit, clientCount } from './events.mjs';
 import { startSite, stopSite, siteState, clearImageCache, siteLog, updateSite, startData } from './site.mjs';
 import { listVariants, createVariantRunner } from '../preview/variant.mjs';
@@ -187,7 +187,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && url.pathname === '/api/preview-config') return send(res, 200, { ok: true, siteOrigin: config.siteOrigin, variantOrigin: config.variantOrigin });
     if (req.method === 'GET' && url.pathname === '/api/variants') return send(res, 200, { ok: true, variants: await listVariants(config.site, { all: url.searchParams.get('all') === '1' }) });
     if (req.method === 'GET' && url.pathname === '/api/events') return subscribe(req, res);
-    if (req.method === 'GET' && url.pathname === '/api/status') return send(res, 200, { ok: true, site: siteState(), siteOrigin: config.siteOrigin, repoCommit: register?.source.repoCommit, machine: config.machine, clients: clientCount() });
+    if (req.method === 'GET' && url.pathname === '/api/status') return send(res, 200, { ok: true, site: siteState(), siteOrigin: config.siteOrigin, repoCommit: register?.source.repoCommit, machine: config.machine, clients: clientCount(), conflicts: findConflicts() });
     if (req.method === 'GET' && url.pathname === '/api/site-log') return send(res, 200, siteLog(), 'text/plain; charset=utf-8');
     if (req.method === 'GET' && url.pathname === '/api/slots') {
       return send(res, 200, { ok: true, ...register, states: Object.fromEntries(register.slots.map((s) => [s.key, readState(s.key)])), siteOrigin: config.siteOrigin });
@@ -244,6 +244,10 @@ const variants = createVariantRunner({
 const stopAll = async () => { await variants.stop().catch(() => {}); stopSite(); process.exit(0); };
 process.on('SIGINT', stopAll);
 process.on('SIGTERM', stopAll);
+
+// V5 S2: 충돌 사본이 생기거나 없어지면 대장에 알림(30초마다 · helper.status → 대장이 /api/status 다시 읽음)
+let lastConflicts = '';
+setInterval(() => { const c = findConflicts().join('|'); if (c !== lastConflicts) { lastConflicts = c; emit('helper.status', { site: siteState(), conflicts: c ? c.split('|') : [] }); } }, 30000).unref();
 
 await rebuild('start');
 server.listen(config.ports.helper, '127.0.0.1', () => {

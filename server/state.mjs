@@ -1,6 +1,6 @@
 // 칸 상태 파일: 공유 폴더 _상태\<칸 키>.json (contract/status.schema.json · G0 결정 2)
 // - 통째로 새로 씀 · revision +1 · 다른 컴퓨터가 그사이 바꿨으면(revision 다름) BUSY
-import { readFileSync, writeFileSync, existsSync, mkdirSync, renameSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, renameSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { config } from './config.mjs';
 import { StudioError } from './images.mjs';
@@ -42,3 +42,22 @@ export function writeState(next, expectRevision) {
 }
 
 export const stateExists = (key) => existsSync(file(key));
+
+/** V5 S2: Synology 동기화 충돌 사본 찾기(자동으로 지우지 않음 · 대장 맨 위 경고만)
+ *  찾는 곳: _상태 · 요청 · _시험(한 단계 아래까지) · 이름에 (Conflict · _Conflict · _충돌 · conflicted copy */
+const CONFLICT = /\(conflict|_conflict|_충돌|conflicted copy/i;
+export function findConflicts() {
+  const out = [];
+  const scan = (dir, depth) => {
+    let names = [];
+    try { names = readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const d of names) {
+      if (CONFLICT.test(d.name)) out.push(path.relative(config.share, path.join(dir, d.name)).split(path.sep).join('/'));
+      else if (d.isDirectory() && depth > 0 && !d.name.startsWith('_자동시험')) scan(path.join(dir, d.name), depth - 1);
+    }
+  };
+  scan(config.dirs.state, 0);
+  scan(config.dirs.request, 0);
+  scan(config.dirs.trial, 1);
+  return out.sort();
+}
