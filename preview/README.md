@@ -62,3 +62,5 @@ node preview/dev/fake-helper.mjs --site-port 4351 --repo D:/eereum_studio/site -
   - 한 파일을 같이 쓰는 칸: 그림은 그대로 · 화면이 자를 때 그 점을 남기게 `object-position`(배경은 `background-position`)만 바꿔 보여 줌 = 사이트 `media.ts`의 `focus`와 같은 뜻
   - 놓을 때는 가운데로 자름(기본) · 점은 상태 `trial.focus` · 확정 `.json`의 `focus`로 M5에 넘어감 · "최신으로" 뒤 다시 끼울 때도 그 점 그대로
   - 계산은 `preview/focus.mjs` 한 곳(미리보기 창의 노란 테두리 계산은 같은 식 · `test/preview/focus.test.mjs`가 둘을 맞춰 봄)
+- **사이트 `<picture>`**(PC8 B-10): 사이트 `Media` · `HeroPicture`는 `<source media="(min-width:1280px)">` = **PC 파일** · `<img>` = **휴대폰 파일** → bridge도 그대로(휴대폰 창 = 휴대폰 파일 · PC 창 = PC 파일) · 초점(휴대폰 파일 다시 자름)이 휴대폰 창에 바로 보임 · `<source>`가 없으면(한 그림) `<img>`에 받은 그림
+- **영상 놓기**(PC8 B-6): 그림만 있는 칸에 mp4를 놓으면 그 자리에 `<video muted loop playsinline autoplay>`를 끼워 미리보기(원래 그림은 숨겨 포스터로 · 지우지 않음 · 배경 칸은 칸 맨 뒤에 꽉 차게) · 되돌리거나 그림을 다시 놓으면 영상을 빼고 그림으로 · 사본 화면에서만(사이트 코드 변화 0)

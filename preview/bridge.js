@@ -146,6 +146,65 @@
     return p(x) + ' ' + p(y);
   }
 
+  /**
+   * 그림 칸에 영상 미리보기(PC8 B-6): 칸의 그림(<picture> 또는 <img>) 자리에 <video muted loop playsinline autoplay>를 끼움.
+   * 원래 그림은 숨겨 두고(지우지 않음) 포스터로 씀 · 배경 칸은 칸 맨 뒤에 꽉 차게 깔음. 사본 화면에서만 · 사이트 코드 변화 0
+   */
+  function injectVideo(el) {
+    var img = el.querySelector('img');
+    var hideTarget = el.querySelector('picture') || img;
+    var v = document.createElement('video');
+    ['muted', 'loop', 'playsinline', 'autoplay'].forEach(function (a) { v.setAttribute(a, ''); });
+    v.muted = true;
+    v.loop = true;
+    v.autoplay = true;
+    v.playsInline = true;
+    v.setAttribute('data-studio-video', '');
+    if (img) {
+      v.className = img.className || '';
+      v.poster = img.currentSrc || img.src || '';
+      if (img.style && img.style.objectPosition) v.style.objectPosition = img.style.objectPosition;
+    }
+    var s = v.style;
+    s.position = 'absolute';
+    s.left = '0';
+    s.top = '0';
+    s.width = '100%';
+    s.height = '100%';
+    s.objectFit = 'cover';
+    if (hideTarget && hideTarget.parentNode) {
+      hideTarget.setAttribute('data-studio-hidden', '');
+      hideTarget.style.display = 'none';
+      hideTarget.parentNode.insertBefore(v, hideTarget);
+    } else {
+      // 배경 칸 등: 칸 맨 뒤에 꽉 차게
+      if (!el.style.position) el.style.position = 'relative';
+      el.style.isolation = 'isolate'; // 영상은 칸 배경 위 · 칸 글자 아래
+      s.zIndex = '-1';
+      el.insertBefore(v, el.firstChild || null);
+    }
+    return v;
+  }
+
+  /** 끼운 영상을 빼고 숨긴 그림을 다시 보임 · 뺀 게 있으면 true */
+  function restoreVideo(el) {
+    var v = el.querySelector('[data-studio-video]');
+    if (!v) return false;
+    if (v.pause) v.pause();
+    if (v.parentNode) v.parentNode.removeChild(v);
+    var hidden = el.querySelector('[data-studio-hidden]');
+    if (hidden) {
+      hidden.removeAttribute('data-studio-hidden');
+      hidden.style.display = '';
+    }
+    return true;
+  }
+
+  /** <source>의 media 글자(속성 · 속성값 둘 다 봄) */
+  function sourceMedia(s) {
+    return String(s.media || (s.getAttribute && s.getAttribute('media')) || '');
+  }
+
   function apply(msg) {
     var key = msg.key;
     var version = Number(msg.version) || Date.now();
@@ -161,6 +220,24 @@
     var count = 0;
     var pos = lane === 'image' ? focusCss(msg.focus) : null;
     els.forEach(function (el) {
+      if (lane === 'video') {
+        // PC8 B-6: 그림만 있는 칸에 mp4를 놓아도 그 자리에 <video>를 끼워 미리보기(전엔 <video>가 없으면 "0곳")
+        if (!urls.video || msg.state === 'empty' || msg.state === 'live') {
+          // 되돌림(영상 없음) → 끼운 영상을 빼고 원래 그림을 다시 보임
+          if (restoreVideo(el)) count++;
+          return;
+        }
+        var v = el.matches('video') ? el : el.querySelector('video');
+        if (!v) v = injectVideo(el);
+        v.src = withVersion(urls.video, version);
+        if (msg.poster) v.poster = withVersion(msg.poster, version);
+        if (v.load) v.load();
+        if (v.play) { var pr = v.play(); if (pr && pr.catch) pr.catch(function () {}); }
+        count++;
+        return;
+      }
+      // 그림을 놓음: 앞서 끼운 영상이 있으면 빼고 그림으로
+      restoreVideo(el);
       if ((el.getAttribute('data-slot-kind') || '') === 'background') {
         var bgUrl = urls.pc || urls.mobile;
         if (bgUrl) {
@@ -170,21 +247,15 @@
         if (pos) el.style.backgroundPosition = pos;
         return;
       }
-      if (lane === 'video') {
-        var v = el.matches('video') ? el : el.querySelector('video');
-        if (v && urls.video) {
-          v.src = withVersion(urls.video, version);
-          if (msg.poster || urls.pc) v.poster = withVersion(msg.poster || urls.pc, version);
-          v.load();
-          count++;
-        }
-        return;
-      }
       var sources = Array.prototype.slice.call(el.querySelectorAll('source'));
       var imgs = el.matches('img') ? [el] : Array.prototype.slice.call(el.querySelectorAll('img'));
+      // <picture> 안 <img>가 무슨 그림인가(PC8 B-10): 사이트 Media · HeroPicture는
+      //   <source media="(min-width:1280px)"> = PC 파일 · <img> = 휴대폰 파일(-m-) → img는 휴대폰 그림
+      //   (반대로 <source media="(max-width…)"> = 휴대폰이면 img = PC 그림)
+      var pcSource = sources.some(function (s) { return /min-width/.test(sourceMedia(s)); });
+      var imgRole = !sources.length ? 'any' : pcSource ? 'mobile' : 'pc';
       imgs.forEach(function (img) {
-        // <picture>면 img = PC(기본) 그림 · 따로 쓰는 그림 하나뿐이면 받은 것 아무거나
-        var u = sources.length ? urls.pc : urls.pc || urls.mobile;
+        var u = imgRole === 'mobile' ? urls.mobile : imgRole === 'pc' ? urls.pc : urls.pc || urls.mobile;
         if (!u) return;
         img.removeAttribute('loading');
         if (img.srcset) img.srcset = rewriteSrcset(img.srcset, u, version);
@@ -195,13 +266,14 @@
       if (pos && !sources.length) imgs.forEach(function (img) { img.style.objectPosition = pos; });
       // <picture> 안 <source>: 모바일 · PC 따로 (약속 v1.1 urls.pc · urls.mobile)
       sources.forEach(function (s) {
-        var u = s.media && /min-width/.test(s.media) ? urls.pc : s.media ? urls.mobile : urls.pc;
+        var media = sourceMedia(s);
+        var u = /min-width/.test(media) ? urls.pc : media ? urls.mobile : urls.pc;
         if (!u) return;
         s.srcset = rewriteSrcset(s.srcset || u, u, version);
         count++;
       });
     });
-    post({ type: 'studio:applied', key: key, version: version, count: count });
+    post({ type: 'studio:applied', key: key, version: version, count: count, lane: lane });
   }
 
   /**
@@ -210,7 +282,8 @@
    */
   function pickUrls(msg) {
     var u = msg.urls || {};
-    if (u.pc || u.mobile || u.video) return { pc: u.pc, mobile: u.mobile, video: u.video || (msg.lane === 'video' ? msg.url : undefined) };
+    // v1.1(urls가 있음)이면 urls만 믿음 — 되돌림 신호는 url = 그림 주소라 영상으로 읽으면 안 됨(PC8 B-6)
+    if (msg.urls && typeof msg.urls === 'object') return { pc: u.pc, mobile: u.mobile, video: u.video };
     var t = msg.target || 'both';
     return {
       pc: t === 'mobile' ? undefined : msg.url,
