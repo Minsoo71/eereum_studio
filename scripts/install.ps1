@@ -1,4 +1,4 @@
-# eereum 이미지 스튜디오 설치 (M4 · Windows PowerShell 5.1 · 관리자 권한 필요 없음 · -WithDb일 때만 방화벽 규칙에 관리자 허락 한 번)
+﻿# eereum 이미지 스튜디오 설치 (M4 · Windows PowerShell 5.1 · 관리자 권한 필요 없음 · -WithDb일 때만 방화벽 규칙에 관리자 허락 한 번)
 # 쓰는 법:  powershell -ExecutionPolicy Bypass -File scripts\install.ps1
 # 하는 일: ① Node 26 확인 ② 백신 인증서 설정 ③ 쇼핑몰 사본(D:\eereum_studio\site · 영문 경로 · 쇼핑몰 저장소 main · 읽기만) 준비 · 설치
 #          ④ 스튜디오(이 저장소 · D:\eereum_studio\app) 설치 ⑤ 내장 DB prisma dev 0.16.28 미리 받기(선택) ⑥ 바탕화면 "이미지 스튜디오 열기"
@@ -8,14 +8,16 @@ param(
   [string]$ShopRepo = 'https://github.com/Minsoo71/eereum_ring.git',     # 읽기만(처음 한 번 GitHub 로그인으로 허락)
   [string]$StudioRepo = 'https://github.com/Minsoo71/eereum_studio.git', # 읽기만
   [string]$StudioBranch = 'integration',
+  [string]$StudioCommit = '',  # 정해진 판(예: G1 판)으로 고정할 때 커밋 번호
   [string]$Share = 'D:\Synology Drive VISCOM\eeruem\이미지교체',
   [switch]$WithDb
 )
 $ErrorActionPreference = 'Stop'
 function Step($n, $msg) { Write-Host "[$n] $msg" -ForegroundColor Cyan }
+function Must($what, $code = $LASTEXITCODE) { if ($code -ne 0) { throw "$what 실패(코드 $code) · 위 메시지를 PC9에게 알려 주세요." } }
 function GetRepo($url, $dir, $branch) {
-  if (-not (Test-Path (Join-Path $dir '.git'))) { & git clone --branch $branch $url $dir }
-  else { & git -C $dir fetch origin $branch; & git -C $dir merge --ff-only "origin/$branch" }
+  if (-not (Test-Path (Join-Path $dir '.git'))) { & git clone --branch $branch $url $dir; Must "받기($url)" }
+  else { & git -C $dir fetch origin $branch; Must "최신 받기($dir)"; & git -C $dir merge --ff-only "origin/$branch"; Must "최신으로 맞추기($dir)" }
 }
 
 Step 1 'Node 버전 확인(26 이상)'
@@ -32,12 +34,13 @@ New-Item -ItemType Directory -Force $Root | Out-Null
 $site = Join-Path $Root 'site'
 GetRepo $ShopRepo $site 'main'
 if (Test-Path (Join-Path $site '.env')) { Write-Warning '사본에 .env가 있어요. 스튜디오 사본에는 .env를 두지 않아요(비밀값 0).' }
-Push-Location $site; & pnpm install --frozen-lockfile; Pop-Location
+Push-Location $site; & pnpm install --frozen-lockfile; $c = $LASTEXITCODE; Pop-Location; Must '쇼핑몰 사본 설치(pnpm install)' $c
 
 Step 4 "스튜디오 설치 · $Root\app ($StudioBranch)"
 $app = Join-Path $Root 'app'
 GetRepo $StudioRepo $app $StudioBranch
-Push-Location $app; & pnpm install --frozen-lockfile; Pop-Location
+if ($StudioCommit) { & git -C $app checkout -q $StudioCommit; Must "판 $StudioCommit 고르기"; Write-Host "  스튜디오 판 = $StudioCommit" }
+Push-Location $app; & pnpm install --frozen-lockfile; $c = $LASTEXITCODE; Pop-Location; Must '스튜디오 설치(pnpm install)' $c
 
 if ($WithDb) {
   Step 5 '내장 DB prisma dev 0.16.28 미리 받기(데이터 화면 보기용 · 인터넷 한 번)'
@@ -65,6 +68,7 @@ $lnk = Join-Path ([Environment]::GetFolderPath('Desktop')) '이미지 스튜디�
 $sh = (New-Object -ComObject WScript.Shell).CreateShortcut($lnk)
 $sh.TargetPath = 'powershell.exe'
 $sh.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$start`" -Root `"$Root`" -Share `"$Share`""
+if ($WithDb) { $sh.Arguments += ' -WithDb' }  # 데이터 화면(내장 DB)도 같이 켬
 $sh.WorkingDirectory = $app
 $sh.Save()
 Write-Host "설치 끝 · 바탕화면 '이미지 스튜디오 열기'를 누르세요." -ForegroundColor Green

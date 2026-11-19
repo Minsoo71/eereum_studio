@@ -1,4 +1,4 @@
-# 이미지 스튜디오 열기(바탕화면 바로 가기가 부름) — 도우미 켜기 → 대장 창 · 미리보기 창 열기
+﻿# 이미지 스튜디오 열기(바탕화면 바로 가기가 부름) — 도우미 켜기 → 대장 창 · 미리보기 창 열기
 param(
   [string]$Root = 'D:\eereum_studio',
   [string]$Share = 'D:\Synology Drive VISCOM\eeruem\이미지교체',
