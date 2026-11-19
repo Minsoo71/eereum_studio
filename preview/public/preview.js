@@ -359,7 +359,12 @@ const handlers = {
     if (d.state === 'failed') toast(`수정안 사본 실패: ${d.message ?? ''}`, true);
     if (st.compare) renderStage();
   },
-  'helper.status': (d) => status(d.site === 'ready' ? `사본 ${d.repoCommit?.slice(0, 7) ?? ''} · 연결됨` : `사본 ${d.site}`, d.site === 'ready' ? 'ok' : d.site === 'failed' ? 'bad' : 'busy'),
+  'helper.status': (d) => {
+    // 사본 상태가 없는 소식(경고 · DB · 충돌)은 띠를 바꾸지 않음 — "사본 undefined" 방지(PC2-스튜디오-1)
+    if (!d.site) return;
+    const name = { starting: '켜는 중…', failed: `꺼짐${d.message ? ' · ' + d.message : ''}`, stopped: '꺼짐' }[d.site] ?? d.site;
+    status(d.site === 'ready' ? `사본 ${d.repoCommit?.slice(0, 7) ?? ''} · 연결됨`.replace('  ', ' ') : `사본 ${name}`, d.site === 'ready' ? 'ok' : d.site === 'starting' ? 'busy' : 'bad');
+  },
   'helper.error': (d) => toast(`${d.code}: ${d.message}`, true),
 };
 

@@ -14,7 +14,7 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 function Step($n, $msg) { Write-Host "[$n] $msg" -ForegroundColor Cyan }
-function Must($what, $code = $LASTEXITCODE) { if ($code -ne 0) { throw "$what 실패(코드 $code) · 위 메시지를 PC9에게 알려 주세요." } }
+function Must($what, $code = $LASTEXITCODE) { if ($code -ne 0) { throw "$what 실패(코드 $code) · 위 메시지를 PC2에게 알려 주세요." } }
 function GetRepo($url, $dir, $branch) {
   if (-not (Test-Path (Join-Path $dir '.git'))) { & git clone --branch $branch $url $dir; Must "받기($url)" }
   else { & git -C $dir fetch origin $branch; Must "최신 받기($dir)"; & git -C $dir merge --ff-only "origin/$branch"; Must "최신으로 맞추기($dir)" }
@@ -23,7 +23,30 @@ function GetRepo($url, $dir, $branch) {
 Step 1 'Node 버전 확인(26 이상)'
 $nodeVer = (& node -v) -replace '^v', ''
 if ([int]($nodeVer.Split('.')[0]) -lt 26) { throw "Node 26 이상이 필요해요(지금 $nodeVer). https://nodejs.org 에서 설치 뒤 다시." }
-if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) { & corepack enable; if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) { throw 'pnpm이 없어요. corepack enable 또는 npm i -g pnpm@10.34.9' } }
+# pnpm 찾기(PC2-스튜디오-1): ① pnpm 있으면 그대로 ② 없으면 corepack enable ③ 그래도 없으면 npm으로 설치
+# (Node 25부터 corepack이 Node에 기본으로 들어 있지 않음 → Node 26에서 "corepack is not recognized"로 멈췄음)
+$PnpmVersion = '10.34.9'  # 쇼핑몰 저장소 package.json packageManager와 같은 판
+function HasCmd($name) { [bool](Get-Command $name -ErrorAction SilentlyContinue) }
+function RefreshPath { $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User') + ';' + $env:Path }
+if (HasCmd 'pnpm') { Write-Host "  pnpm 있음: $(& pnpm -v)" }
+else {
+  if (HasCmd 'corepack') { Write-Host '  pnpm 없음 → corepack enable'; & corepack enable; RefreshPath }
+  if (-not (HasCmd 'pnpm')) {
+    if (-not (HasCmd 'npm')) { throw 'pnpm도 npm도 없어요. https://nodejs.org 에서 Node 26을 다시 설치한 뒤 설치하기.cmd를 다시 눌러 주세요.' }
+    Write-Host "  pnpm 없음 → npm install -g pnpm@$PnpmVersion (1분쯤)"
+    & npm install -g "pnpm@$PnpmVersion"; Must "pnpm 설치(npm install -g pnpm@$PnpmVersion)"
+    RefreshPath
+    # 방금 설치한 pnpm을 PowerShell 5.1이 이 창에서 못 찾을 때가 있음(명령 찾기 기억 · 시험에서 확인)
+    # → npm 전역 폴더의 pnpm.cmd를 직접 가리킴 · 이 창 PATH 앞에도 더함(사본 설치 중 다른 도구가 pnpm을 부를 때)
+    if (-not (HasCmd 'pnpm')) {
+      $npmBin = "$(& npm prefix -g | Select-Object -Last 1)".Trim()
+      $full = Join-Path $npmBin 'pnpm.cmd'
+      if ($npmBin -and (Test-Path $full)) { $env:Path = "$npmBin;" + $env:Path; Set-Alias -Name pnpm -Value $full -Scope Script }
+    }
+  }
+  if (-not (HasCmd 'pnpm')) { throw 'pnpm을 설치했지만 찾지 못했어요. 이 창을 닫고 설치하기.cmd를 다시 눌러 주세요. 그래도 같으면 이 화면을 PC2에게 보내 주세요.' }
+  Write-Host "  pnpm 준비됨: $(& pnpm -v)" -ForegroundColor Green
+}
 
 Step 2 '백신 인증서(NODE_OPTIONS=--use-system-ca) 이 사용자에 저장'
 [Environment]::SetEnvironmentVariable('NODE_OPTIONS', '--use-system-ca', 'User')
@@ -50,15 +73,8 @@ if ($WithDb) {
 
   # R-1(PC6 11-19): prisma dev가 관리 포트 51213을 모든 주소로 엶(주소 옵션 없음) → 밖에서 들어오기 막는 방화벽 규칙
   # (같은 컴퓨터 안 localhost 연결은 Windows 방화벽이 막지 않음 · 스튜디오는 그대로 씀)
-  $rule = 'eereum studio - block DB 51213'
-  if (Get-NetFirewallRule -DisplayName $rule -ErrorAction SilentlyContinue) { Write-Host "  방화벽 규칙 이미 있음: $rule" }
-  else {
-    Write-Host '  방화벽 규칙 만들기 → Windows "변경 허용" 창에서 [예]를 눌러 주세요(관리자 허락 한 번).' -ForegroundColor Yellow
-    $cmd = "New-NetFirewallRule -DisplayName '$rule' -Direction Inbound -Protocol TCP -LocalPort 51213-51216 -Action Block -Profile Any | Out-Null"
-    try { Start-Process powershell.exe -Verb RunAs -Wait -ArgumentList '-NoProfile', '-Command', $cmd } catch { Write-Warning '관리자 허락을 받지 못했어요.' }
-    if (Get-NetFirewallRule -DisplayName $rule -ErrorAction SilentlyContinue) { Write-Host "  방화벽 규칙 만듦: $rule" -ForegroundColor Green }
-    else { Write-Warning '방화벽 규칙이 없어요 → 데이터 화면(-WithDb)을 켜면 대장에 경고가 떠요. Windows 방화벽 허용 창이 뜨면 "허용 안 함"을 누르세요.' }
-  }
+  # PC2-스튜디오-1: 따로 뺀 db-firewall.ps1 — 설치를 다시 돌려도 · 꺼진 규칙이 있어도 다시 만듦 · 열 때(start.ps1)도 없으면 다시 물음
+  & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $app 'scripts\db-firewall.ps1')
 }
 
 Step 6 '공유 폴더 확인 · 바탕화면 바로 가기'

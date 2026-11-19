@@ -9,7 +9,7 @@ import { config } from './config.mjs';
 import { buildSlots, diffSlots } from './slots.mjs';
 import { inspect, forSite, thumb, StudioError } from './images.mjs';
 import { readState, ensureState, writeState, findConflicts, watchMine } from './state.mjs';
-import { subscribe, emit, clientCount } from './events.mjs';
+import { subscribe, emit, clientCount, setStatusBase } from './events.mjs';
 import { pendingRequests, moveToReplaced } from './requests.mjs';
 import { extFor, safeExt, isLocalHost, hasDbFirewallRule } from './safety.mjs';
 import { startSite, stopSite, siteState, clearImageCache, siteLog, updateSite, startData } from './site.mjs';
@@ -21,6 +21,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REGISTER = path.join(HERE, '../register');
 const PREVIEW = path.join(HERE, '../preview');
 let register = null; // 지금 칸 목록
+setStatusBase(() => ({ site: siteState(), repoCommit: register?.source.repoCommit }));
 const safetyWarnings = []; // 대장 위 경고(R-1 방화벽 규칙 없음 등) · /api/status warnings
 const thumbCache = new Map();
 

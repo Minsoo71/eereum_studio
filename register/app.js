@@ -50,7 +50,7 @@ function rowHtml(s) {
 function render() {
   $('#pages').innerHTML = data.pages.map((p) => `<a href="#${p.pageId}">${p.pageId} ${esc(p.name)} <i>${data.slots.filter((s) => s.pageId === p.pageId).length}</i></a>`).join('');
   $('#main').innerHTML = data.pages.map((p) => `<section id="${p.pageId}"><h2>${p.pageId} ${esc(p.name)} <small>${esc(p.paths.join(' · '))}${p.public === false ? ' · 개발용' : ''}</small></h2>
-<table><thead><tr><th>칸 ID</th><th>지금 그림</th><th>위치 · 종류</th><th>이미지 칸</th><th>영상 칸</th><th>규격</th><th></th></tr></thead><tbody>${data.slots.filter((s) => s.pageId === p.pageId).map(rowHtml).join('')}</tbody></table></section>`).join('');
+<div class="tbl"><table><thead><tr><th>칸 ID</th><th>지금 그림</th><th>위치 · 종류</th><th>이미지 칸</th><th>영상 칸</th><th>규격</th><th></th></tr></thead><tbody>${data.slots.filter((s) => s.pageId === p.pageId).map(rowHtml).join('')}</tbody></table></div></section>`).join('');
   renderSide();
 }
 function rerenderRow(key) {

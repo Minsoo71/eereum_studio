@@ -331,13 +331,32 @@
     clearTimeout(mo.t);
     mo.t = setTimeout(announce, 200);
   });
+  // 사본(next dev) 왼쪽 아래 "N" 개발 표시 숨기기(PC2-스튜디오-1) — 사이트 코드는 그대로 · 이 미리보기 창 안에서만
+  // 표시는 <nextjs-portal>(열린 shadow DOM) 안 #devtools-indicator · [data-next-badge-root] · 오류 창(대화 상자)은 그대로 보임
+  var HIDE_DEV = '#devtools-indicator,[data-next-badge-root]{display:none!important}';
+  function hideDevIndicator() {
+    try {
+      var portal = document.querySelector('nextjs-portal');
+      var root = portal && portal.shadowRoot;
+      if (!root || root.querySelector('style[data-studio-hide]')) return;
+      var s = document.createElement('style');
+      s.setAttribute('data-studio-hide', '');
+      s.textContent = HIDE_DEV;
+      root.appendChild(s);
+    } catch (e) { /* 표시를 못 숨겨도 미리보기는 그대로 */ }
+  }
+  var devMo = new MutationObserver(hideDevIndicator);
+
   function start() {
     mo.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['data-slot'] });
+    devMo.observe(document.body, { childList: true, subtree: false }); // <nextjs-portal>은 body 바로 아래에 붙음
+    hideDevIndicator();
+    [500, 1500, 4000].forEach(function (ms) { setTimeout(hideDevIndicator, ms); }); // shadow DOM이 늦게 붙는 경우
     announce(true);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
   else start();
 
   // 시험용으로 꺼내 둠 (node --test)
-  window.__studioBridge = { withVersion: withVersion, rewriteSrcset: rewriteSrcset, matchesTarget: matchesTarget, pickUrls: pickUrls };
+  window.__studioBridge = { withVersion: withVersion, rewriteSrcset: rewriteSrcset, matchesTarget: matchesTarget, pickUrls: pickUrls, hideDevIndicator: hideDevIndicator };
 })();

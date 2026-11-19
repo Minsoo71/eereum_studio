@@ -43,6 +43,7 @@ function setup(slots, opts = {}) {
       return [];
     },
     addEventListener() {},
+    ...(opts.doc ?? {}),
   };
   const window = {
     parent: { postMessage: (m, o) => posted.push({ m, o }) },
@@ -258,4 +259,21 @@ test('bridge: 영상 뒤 그림을 놓으면 끼운 영상을 빼고 그림으�
   assert.ok(v && bg.children[0] === v, '배경 칸 맨 뒤(첫 자식)');
   assert.equal(v.style.zIndex, '-1');
   assert.equal(bg.style.isolation, 'isolate');
+});
+
+test('bridge: 사본 왼쪽 아래 Next 개발 표시(N)만 숨김 · 한 번만 넣음 (PC2-스튜디오-1)', () => {
+  const added = [];
+  const root = { querySelector: (sel) => (sel === 'style[data-studio-hide]' && added.length ? added[0] : null), appendChild: (n) => added.push(n) };
+  const { api } = setup([], { doc: { querySelector: (sel) => (sel === 'nextjs-portal' ? { shadowRoot: root } : null) } });
+  assert.equal(added.length, 1);
+  assert.match(added[0].textContent, /#devtools-indicator/);
+  assert.match(added[0].textContent, /data-next-badge-root/);
+  api.hideDevIndicator();
+  assert.equal(added.length, 1, '두 번 넣지 않음');
+});
+
+test('bridge: 개발 표시가 없는 화면(운영처럼)에서도 그대로 돎', () => {
+  const { api, posted } = setup([], { doc: { querySelector: () => null } });
+  assert.doesNotThrow(() => api.hideDevIndicator());
+  assert.ok(posted.find((p) => p.m.type === 'studio:ready'));
 });
