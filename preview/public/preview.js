@@ -200,7 +200,7 @@ window.addEventListener('message', (e) => {
   } else if (m.type === 'studio:missing') {
     toast(`“${m.key}” — 이 화면에 없는 칸`, true);
   } else if (m.type === 'studio:applied') {
-    status(`“${m.key}” 새 그림 반영 · ${m.count}곳`);
+    status(`“${m.key}” 새 ${m.lane === 'video' ? '영상' : '그림'} 반영 · ${m.count}곳`);
   } else if (m.type === 'studio:scroll' && st.compare) {
     for (const f of st.frames) if (f.el !== frame.el && f.device === frame.device) postTo(f, { type: 'studio:scrollTo', ratio: m.ratio });
   }

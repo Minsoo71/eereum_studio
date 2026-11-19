@@ -26,7 +26,7 @@ function el(attrs, children = []) {
   return e;
 }
 
-function setup(slots) {
+function setup(slots, opts = {}) {
   const posted = [];
   const listeners = {};
   const all = slots;
@@ -35,7 +35,7 @@ function setup(slots) {
     currentScript: { src: 'http://localhost:4301/__studio/bridge.js?parent=http%3A%2F%2Flocalhost%3A4300' },
     documentElement: { scrollHeight: 2000 },
     body: { appendChild() {} },
-    createElement: () => ({ style: {}, setAttribute() {}, remove() {} }),
+    createElement: opts.createElement ?? (() => ({ style: {}, setAttribute() {}, remove() {} })),
     querySelectorAll: (sel) => {
       const m = sel.match(/^\[data-slot="(.+)"\]$/);
       if (m) return all.filter((s) => s.attrs['data-slot'] === m[1]);
@@ -158,4 +158,104 @@ test('bridge: 초점(PC11-스튜디오-3) — 한 파일 칸은 object-position 
   assert.equal(src.srcset, '/media/home/hero-mobile.jpg?v=11');
   send({ type: 'studio:update', key: 'home.story.bg', lane: 'image', urls: {}, focus: { x: 0, y: 1 }, version: 12 });
   assert.equal(bg.style.backgroundPosition, '0% 100%');
+});
+
+test('bridge: 사이트 <picture>(PC8 B-10) — <source min-width:1280px> = PC 파일 · <img> = 휴대폰 파일 · 초점(휴대폰만 다시 자름)이 휴대폰 그림에 들어감', () => {
+  // apps/web/components/ui/Media.tsx · HeroPicture.tsx 모양 그대로
+  const pcSrc = el({ tag: 'source', media: '(min-width: 1280px)', srcset: '/_next/image?url=%2Fmedia%2Fhome%2Fhero.jpg&w=1920 1920w' });
+  pcSrc.media = '(min-width: 1280px)';
+  const img = el({ tag: 'img', src: '/_next/image?url=%2Fmedia%2Fhome%2Fhero-mobile.jpg&w=828', srcset: '/_next/image?url=%2Fmedia%2Fhome%2Fhero-mobile.jpg&w=640 640w, /_next/image?url=%2Fmedia%2Fhome%2Fhero-mobile.jpg&w=828 828w' });
+  img.style = {};
+  const { send } = setup([el({ 'data-slot': 'home.hero' }, [pcSrc, img])]);
+  // 놓기: PC · 휴대폰 둘 다
+  send({ type: 'studio:update', key: 'home.hero', lane: 'image', urls: { pc: '/media/home/hero.jpg', mobile: '/media/home/hero-mobile.jpg' }, version: 20 });
+  assert.equal(img.src, '/media/home/hero-mobile.jpg?v=20', '<img> = 휴대폰 파일');
+  assert.equal(img.srcset, '/media/home/hero-mobile.jpg?v=20 640w, /media/home/hero-mobile.jpg?v=20 828w');
+  assert.equal(pcSrc.srcset, '/media/home/hero.jpg?v=20 1920w', '<source min-width> = PC 파일');
+  // 초점: 도우미가 휴대폰 파일만 다시 자름(urls.mobile만) → 휴대폰 그림만 바뀌고 PC <source>는 그대로
+  send({ type: 'studio:update', key: 'home.hero', lane: 'image', state: 'trial', urls: { mobile: '/media/home/hero-mobile.jpg' }, focus: { x: 0.9, y: 0.5 }, version: 21 });
+  assert.equal(img.src, '/media/home/hero-mobile.jpg?v=21', '초점이 휴대폰 창 그림에 반영');
+  assert.equal(pcSrc.srcset, '/media/home/hero.jpg?v=20 1920w', 'PC 그림은 안 바뀜');
+  assert.equal(img.style.objectPosition, undefined, '<picture> 칸은 위치를 바꾸지 않음(파일을 다시 자름)');
+  // PC만 놓기 → 휴대폰 그림은 그대로
+  send({ type: 'studio:update', key: 'home.hero', lane: 'image', urls: { pc: '/media/_studio/p.jpg' }, version: 22 });
+  assert.equal(img.src, '/media/home/hero-mobile.jpg?v=21');
+  assert.equal(pcSrc.srcset, '/media/_studio/p.jpg?v=22 1920w');
+});
+
+test('bridge: HeroPicture에서 PC = 휴대폰 같은 그림이면 <source> 없음 → <img>에 받은 그림', () => {
+  const img = el({ tag: 'img', src: '/media/rings/hero.jpg' });
+  const { send } = setup([el({ 'data-slot': 'rings.hero' }, [img])]);
+  send({ type: 'studio:update', key: 'rings.hero', lane: 'image', urls: { pc: '/media/rings/hero.jpg' }, version: 5 });
+  assert.equal(img.src, '/media/rings/hero.jpg?v=5');
+});
+
+// 작은 DOM(B-6 시험용): 태그 · [속성] 찾기 · 끼우기 · 빼기
+function node(tag, attrs = {}, kids = []) {
+  const n = {
+    tag, attrs: { ...attrs }, style: {}, children: [], parentNode: null, className: attrs.class ?? '',
+    getAttribute: (k) => (k in n.attrs ? n.attrs[k] : null),
+    setAttribute: (k, v) => { n.attrs[k] = String(v); },
+    removeAttribute: (k) => { delete n.attrs[k]; },
+    is: (sel) => { const m = sel.match(/^\[([\w-]+)\]$/); return m ? m[1] in n.attrs : sel === n.tag; },
+    matches: (sel) => n.is(sel),
+    querySelectorAll: (sel) => n.children.flatMap((c) => [...(c.is(sel) ? [c] : []), ...c.querySelectorAll(sel)]),
+    querySelector: (sel) => n.querySelectorAll(sel)[0] ?? null,
+    insertBefore: (x, ref) => { x.parentNode = n; const i = ref ? n.children.indexOf(ref) : -1; i < 0 ? n.children.push(x) : n.children.splice(i, 0, x); return x; },
+    removeChild: (x) => { n.children = n.children.filter((c) => c !== x); x.parentNode = null; },
+    get firstChild() { return n.children[0] ?? null; },
+    getBoundingClientRect: () => ({ left: 0, top: 0, width: 100, height: 80 }),
+    scrollIntoView() {},
+    load() { n.loaded = (n.loaded ?? 0) + 1; },
+    play() { n.playing = true; return Promise.resolve(); },
+    pause() { n.playing = false; },
+  };
+  for (const k of kids) n.insertBefore(k, null);
+  if ('src' in attrs) n.src = attrs.src;
+  return n;
+}
+
+test('bridge: 그림 칸에 mp4(PC8 B-6) — <video muted loop playsinline> 끼움 · 그림은 숨겨 포스터로 · "0곳" 아님 · 되돌리면 그림으로', () => {
+  const img = node('img', { src: '/_next/image?url=%2Fmedia%2Fhome%2Fstory.jpg&w=828', class: 'object-cover' });
+  const pic = node('picture', {}, [node('source', { media: '(min-width: 1280px)' }), img]);
+  const slot = node('div', { 'data-slot': 'home.story', 'data-slot-kind': 'normal' }, [pic]);
+  const { posted, send } = setup([slot], { createElement: (t) => node(t) });
+  send({ type: 'studio:update', key: 'home.story', lane: 'video', state: 'trial', urls: { video: '/media/_studio/home.story.mp4' }, version: 30 });
+  const v = slot.querySelector('video');
+  assert.ok(v, '<video>를 끼움');
+  assert.equal(v.src, '/media/_studio/home.story.mp4?v=30');
+  for (const a of ['muted', 'loop', 'playsinline', 'autoplay']) assert.ok(a in v.attrs, a);
+  assert.equal(v.muted, true);
+  assert.equal(v.poster, img.src, '포스터 = 지금 그림');
+  assert.equal(v.className, 'object-cover');
+  assert.equal(pic.style.display, 'none', '그림은 숨김(지우지 않음)');
+  assert.equal(v.playing, true);
+  const applied = posted.filter((p) => p.m.type === 'studio:applied').pop().m;
+  assert.equal(applied.count, 1, '"0곳" 아님');
+  // 다시 놓음: 새 영상 하나만(두 개 끼우지 않음)
+  send({ type: 'studio:update', key: 'home.story', lane: 'video', urls: { video: '/media/_studio/home.story.mp4' }, version: 31 });
+  assert.equal(slot.querySelectorAll('video').length, 1);
+  assert.equal(slot.querySelector('video').src, '/media/_studio/home.story.mp4?v=31');
+  // 되돌림(도우미 revert: lane video · urls에 video 없음) → 영상 빼고 그림 다시
+  send({ type: 'studio:update', key: 'home.story', lane: 'video', state: 'empty', url: '/media/home/story.jpg?v=32', urls: { pc: '/media/home/story.jpg?v=32' }, version: 32 }); // 도우미 revert 신호 그대로
+  assert.equal(slot.querySelectorAll('video').length, 0);
+  assert.equal(pic.style.display, '');
+});
+
+test('bridge: 영상 뒤 그림을 놓으면 끼운 영상을 빼고 그림으로 · 배경 칸에도 영상', () => {
+  const img = node('img', { src: '/media/about/hero.jpg' });
+  const slot = node('div', { 'data-slot': 'about.hero' }, [img]);
+  const bg = node('section', { 'data-slot': 'home.story.bg', 'data-slot-kind': 'background' }, [node('h2')]);
+  const { send } = setup([slot, bg], { createElement: (t) => node(t) });
+  send({ type: 'studio:update', key: 'about.hero', lane: 'video', urls: { video: '/v.mp4' }, version: 1 });
+  assert.equal(slot.querySelectorAll('video').length, 1);
+  send({ type: 'studio:update', key: 'about.hero', lane: 'image', urls: { pc: '/media/about/new.jpg' }, version: 2 });
+  assert.equal(slot.querySelectorAll('video').length, 0);
+  assert.equal(img.style.display, '');
+  assert.equal(img.src, '/media/about/new.jpg?v=2');
+  send({ type: 'studio:update', key: 'home.story.bg', lane: 'video', urls: { video: '/bg.mp4' }, version: 3 });
+  const v = bg.querySelector('video');
+  assert.ok(v && bg.children[0] === v, '배경 칸 맨 뒤(첫 자식)');
+  assert.equal(v.style.zIndex, '-1');
+  assert.equal(bg.style.isolation, 'isolate');
 });
