@@ -9,7 +9,7 @@ const versions = {}; // 칸마다 썸네일 버전
 async function api(pathname, body) {
   const r = await fetch(pathname, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body ?? {}) });
   const j = await r.json().catch(() => ({ ok: false, error: { message: '응답을 읽지 못했어요.' } }));
-  if (!j.ok) throw new Error(j.error?.message ?? '실패했어요.');
+  if (!j.ok) throw Object.assign(new Error(j.error?.message ?? '실패했어요.'), { code: j.error?.code, detail: j.error?.detail });
   return j;
 }
 function toast(msg, bad = false) {
@@ -76,13 +76,27 @@ ${s.current.mobile ? `<label>놓을 자리</label><select id="target"><option va
 <label for="memo">메모(파일 이름에도 들어감)</label><textarea id="memo" rows="2" placeholder="예: 반지가 오른쪽에 보이게"></textarea>
 <p class="note">확정하면 요청\\${esc(s.slotId)}_YYYYMMDD-HHMM_설명 으로 들어가요. 공개 사이트는 바뀌지 않아요(PC9가 확인 · 승인 뒤 반영).</p>
 <button type="button" class="wide primary" id="confirm" ${can ? '' : 'disabled'}>확정</button>
+<div id="already" class="already" role="alertdialog" aria-labelledby="already-t" hidden></div>
 ${can ? '' : '<p class="note">먼저 이 칸에 그림을 놓아 보세요.</p>'}`;
-  $('#confirm')?.addEventListener('click', async () => {
+  const send = async (replace) => {
+    const box = $('#already');
     try {
-      const r = await api('/api/confirm', { key: s.key, license: $('#lic').value, ai: $('#ai').value === '1', altKo: $('#alt').value || null, note: $('#memo').value });
-      toast(`요청에 넣었어요: ${r.file}`);
-    } catch (e) { toast(e.message, true); }
-  });
+      const r = await api('/api/confirm', { key: s.key, license: $('#lic').value, ai: $('#ai').value === '1', altKo: $('#alt').value || null, note: $('#memo').value, replace });
+      box.hidden = true;
+      toast(r.replaced?.length ? `앞 요청을 이전\\_바뀐요청으로 옮기고 새로 넣었어요: ${r.file}` : `요청에 넣었어요: ${r.file}`);
+    } catch (e) {
+      if (e.code !== 'ALREADY_REQUESTED') { toast(e.message, true); return; }
+      // 기능 ②: 같은 칸 확정 대기 → 앞 요청 바꾸기 / 취소
+      const list = (e.detail?.pending ?? []).map((p) => `<li>${esc(p.file)}${p.machine ? ` · ${esc(p.machine)}` : ''}</li>`).join('');
+      box.innerHTML = `<p id="already-t"><b>${esc(e.message)}</b></p><ul>${list}</ul><p class="note">바꾸면 앞 요청은 공유 이전\\_바뀐요청\\ 으로 옮겨요(지우지 않음).</p>
+<div class="row"><button type="button" class="primary" id="already-yes">앞 요청 바꾸기</button><button type="button" id="already-no">취소</button></div>`;
+      box.hidden = false;
+      $('#already-yes').addEventListener('click', () => send(true));
+      $('#already-no').addEventListener('click', () => { box.hidden = true; toast('취소했어요. 앞 요청은 그대로예요.'); });
+      $('#already-no').focus();
+    }
+  };
+  $('#confirm')?.addEventListener('click', () => send(false));
 }
 
 async function select(key, tell = true) {

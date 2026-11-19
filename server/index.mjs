@@ -10,6 +10,7 @@ import { buildSlots, diffSlots } from './slots.mjs';
 import { inspect, forSite, thumb, StudioError } from './images.mjs';
 import { readState, ensureState, writeState, findConflicts } from './state.mjs';
 import { subscribe, emit, clientCount } from './events.mjs';
+import { pendingRequests, moveToReplaced } from './requests.mjs';
 import { startSite, stopSite, siteState, clearImageCache, siteLog, updateSite, startData } from './site.mjs';
 import { listVariants, createVariantRunner } from '../preview/variant.mjs';
 
@@ -133,12 +134,18 @@ async function update() {
 }
 
 /** M3 확정: 놓았던 원본 → 요청\<칸ID>_<YYYYMMDD-HHMM>_<설명>.<확장자> + 같은 이름 .json */
-function confirm({ key, license, ai = false, altKo = null, note = '' }) {
+function confirm({ key, license, ai = false, altKo = null, note = '', replace = false }) {
   const slot = slotOf(key);
   const state = readState(key);
   if (!state?.trial) throw new StudioError('NO_TRIAL', '먼저 그림을 놓아 보세요.');
   if (!license) throw new StudioError('LICENSE', '출처 · 라이선스를 골라 주세요.');
   if (/NC/i.test(license)) throw new StudioError('LICENSE', 'CC BY-NC(비영리) 그림은 쓸 수 없어요.');
+  // 기능 ②: 같은 칸에 확정 대기 요청이 있으면 경고 → 대장에서 "앞 요청 바꾸기"(replace) / "취소"
+  const pending = pendingRequests(config.dirs.request, key);
+  if (pending.length && !replace) {
+    throw new StudioError('ALREADY_REQUESTED', '이 칸은 이미 확정 대기 중입니다.', { pending: pending.map((p) => ({ file: p.files[0] ?? p.json, requestedAt: p.requestedAt, machine: p.machine, note: p.note })) });
+  }
+  const replaced = pending.length ? moveToReplaced(config.dirs.request, config.dirs.previous, pending) : [];
   const src = path.join(config.dirs.trial, state.trial.file);
   const ext = path.extname(src);
   const base = `${slot.slotId}_${stamp()}_${safeDesc(note || slot.position.split(/[ ·(]/)[0])}`;
@@ -149,7 +156,7 @@ function confirm({ key, license, ai = false, altKo = null, note = '' }) {
   const lane = state.trial.media;
   const saved = writeState({ ...state, [lane]: { ...state[lane], state: 'requested' }, request: { file: `${base}${ext}`, requestedAt: meta.requestedAt, license, ai: Boolean(ai), ...(altKo ? { altKo } : {}) } }, state.revision);
   emit('slot.updated', { key, slotId: slot.slotId, lane, state: 'requested', file: `${base}${ext}`, version: Date.now() });
-  return { file: `${base}${ext}`, state: saved };
+  return { file: `${base}${ext}`, state: saved, replaced };
 }
 
 // ── HTTP ──
@@ -228,7 +235,7 @@ const server = http.createServer(async (req, res) => {
     const code = e instanceof StudioError ? e.code : 'INTERNAL';
     if (code === 'INTERNAL') console.error(e);
     emit('helper.error', { code, message: e.message }); // 'error'는 EventSource 연결 오류와 섞임(약속 v1.2)
-    return send(res, code === 'INTERNAL' ? 500 : 400, { ok: false, error: { code, message: code === 'INTERNAL' ? '도우미 안에서 문제가 생겼어요.' : e.message } });
+    return send(res, code === 'INTERNAL' ? 500 : 400, { ok: false, error: { code, message: code === 'INTERNAL' ? '도우미 안에서 문제가 생겼어요.' : e.message, ...(e.detail ? { detail: e.detail } : {}) } });
   }
 });
 

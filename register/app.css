@@ -30,3 +30,8 @@ aside .note{font-size:12px;color:var(--muted)}aside .wide{width:100%;padding:10p
 @media (max-width:1100px){.wrap{grid-template-columns:1fr}aside{position:static;height:auto}}
 @media (prefers-reduced-motion:no-preference){.lane{transition:background .12s,border-color .12s}}
 .conflicts{background:#fbeae8;color:#5a1f1a;border-bottom:2px solid #993e35;padding:10px 20px;font-size:13px}.conflicts ul{margin:6px 0 0;padding-inline-start:20px}.conflicts code{font-size:12px}
+
+/* 기능 ② 같은 칸 다시 확정 경고 */
+.already { margin-top: 10px; padding: 10px 12px; border: 1px solid #b7791f; background: #fff8e6; border-radius: 6px; }
+.already ul { margin: 6px 0; padding-inline-start: 18px; font-size: 12px; word-break: break-all; }
+.already .row { display: flex; gap: 8px; flex-wrap: wrap; }

@@ -25,6 +25,7 @@ config.dirs = {
   state: path.join(config.share, '_상태'),
   trial: path.join(config.share, '_시험'),
   request: path.join(config.share, '요청'),
+  previous: path.join(config.share, '이전'), // 바꾼 앞 요청은 이전_바뀐요청 (기능 ②)
   log: path.join(config.share, '_로그'),
   thumbs: path.join(config.share, '_썸네일'),
 };

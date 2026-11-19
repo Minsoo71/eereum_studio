@@ -3,7 +3,7 @@ import sharp from 'sharp';
 import { config } from './config.mjs';
 
 export class StudioError extends Error {
-  constructor(code, message) { super(message); this.code = code; }
+  constructor(code, message, detail) { super(message); this.code = code; if (detail !== undefined) this.detail = detail; }
 }
 
 /** 받은 파일 검사(내용으로 판단 · 확장자 안 믿음) */
