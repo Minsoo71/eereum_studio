@@ -37,6 +37,8 @@ const POSITIONS = [
   ['about.tile.workshop', '04 만드는 방식 타일 1/4'], ['about.tile.diamond', '04 만드는 방식 타일 2/4'],
   ['about.tile.material', '04 만드는 방식 타일 3/4'], ['about.tile.finish', '04 만드는 방식 타일 4/4'],
   ['story.ring', '맨 위 브랜드 메시지 반지'], ['story.tablet', '점토판(이름의 시작) 사진'],
+  // 사이트 #99(11-19) 위키미디어 사진 4칸 · 화면 순서 · 대장 도구와 같은 ID(P05-03 ~ 06)
+  ['story.narmer', '나르메르 팔레트 사진'], ['story.kushim', '쿠심 점토판 사진'], ['story.jokbo', '한국 · 족보 사진'], ['story.hunmin', '한국 · 훈민정음 해례본 사진'],
   ['cart.line', '상품 줄 작은 그림(88×100)'],
   ['seo.og.default', '공유 미리보기 기본 그림(1200×630)'],
   ['dev.sample', '견본 칸(로고)'],
@@ -53,6 +55,7 @@ const BIG = (k) => /^(home|rings|about)\.hero$/.test(k) || k === 'story.ring' ||
 const MIN_W = (k) => (BIG(k) ? 1600 : k === 'seo.og.default' ? 1200 : 960);
 const SOURCE = (k) =>
   k === 'story.tablet' ? '위키미디어 공용(CC BY-SA 3.0)' : k === 'story.ring' ? '자체 렌더' :
+  ['story.narmer', 'story.kushim', 'story.jokbo', 'story.hunmin'].includes(k) ? '위키미디어 공용(content/story-credits.json)' :
   k.startsWith('ring.birth.') ? '사용자 제공' : k.startsWith('ring.angle.') ? '사용자 턴테이블 렌더' :
   k === 'seo.og.default' ? '임시 그림(로고만)' : k === 'dev.sample' ? '로고 svg' : 'Figma 임시 렌더';
 
