@@ -25,7 +25,14 @@
             "media": { "enum": ["image", "video"] },
             "placedAt": { "type": "string", "format": "date-time" },
             "machine": { "type": "string", "description": "놓은 컴퓨터 이름(데스크톱 · 노트북)" },
-            "variant": { "type": "string", "description": "수정안 브랜치에 놓았으면 그 브랜치 이름 · 공개본이면 없음" }
+            "variant": { "type": "string", "description": "수정안 브랜치에 놓았으면 그 브랜치 이름 · 공개본이면 없음" },
+            "focus": {
+              "type": "object",
+              "description": "휴대폰 자르기 초점(약속 v1.3 · 꼭 보여야 할 점 · 0~1 · 왼쪽 위 = 0,0) · 없으면 가운데",
+              "required": ["x", "y"],
+              "additionalProperties": false,
+              "properties": { "x": { "type": "number", "minimum": 0, "maximum": 1 }, "y": { "type": "number", "minimum": 0, "maximum": 1 } }
+            }
           }
         }
       ]

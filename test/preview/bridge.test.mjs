@@ -140,3 +140,22 @@ test('bridge: matchesTarget(모바일 · PC <source>)', () => {
   assert.equal(api.matchesTarget('(max-width: 767px)', 'mobile'), true);
   assert.equal(api.matchesTarget('(min-width: 768px)', 'both'), true);
 });
+
+test('bridge: 초점(PC11-스튜디오-3) — 한 파일 칸은 object-position · <picture> 칸은 그대로 · 배경은 background-position', () => {
+  const single = el({ tag: 'img', src: '/media/rings/hero.jpg' });
+  single.style = {};
+  const picImg = el({ tag: 'img', src: '/media/home/hero.jpg' });
+  picImg.style = {};
+  const src = el({ tag: 'source', srcset: '/media/home/hero-mobile.jpg' });
+  src.media = '(max-width: 767px)';
+  const bg = el({ 'data-slot': 'home.story.bg', 'data-slot-kind': 'background' });
+  const { send } = setup([el({ 'data-slot': 'rings.hero' }, [single]), el({ 'data-slot': 'home.hero' }, [src, picImg]), bg]);
+  send({ type: 'studio:update', key: 'rings.hero', lane: 'image', urls: {}, focus: { x: 0.25, y: 0.8 }, version: 10 });
+  assert.equal(single.style.objectPosition, '25% 80%');
+  assert.equal(single.src, '/media/rings/hero.jpg', '주소가 없으면 그림은 그대로');
+  send({ type: 'studio:update', key: 'home.hero', lane: 'image', urls: { mobile: '/media/home/hero-mobile.jpg' }, focus: { x: 0.9, y: 0.5 }, version: 11 });
+  assert.equal(picImg.style.objectPosition, undefined, 'PC 그림 위치는 바꾸지 않음(휴대폰 파일을 도우미가 다시 자름)');
+  assert.equal(src.srcset, '/media/home/hero-mobile.jpg?v=11');
+  send({ type: 'studio:update', key: 'home.story.bg', lane: 'image', urls: {}, focus: { x: 0, y: 1 }, version: 12 });
+  assert.equal(bg.style.backgroundPosition, '0% 100%');
+});
