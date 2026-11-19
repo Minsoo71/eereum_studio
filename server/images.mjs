@@ -1,6 +1,7 @@
 // 놓은 그림 다루기: 검사 → 방향 바로잡기 → sRGB → 카메라 · GPS 정보 지움(sharp 기본: 메타데이터 안 씀) → 칸 규격으로 줄이기
 import sharp from 'sharp';
 import { config } from './config.mjs';
+import { hasGpsTag } from './safety.mjs';
 
 export class StudioError extends Error {
   constructor(code, message, detail) { super(message); this.code = code; if (detail !== undefined) this.detail = detail; }
@@ -23,7 +24,7 @@ export async function inspect(buf, fileName = '') {
   return {
     media: 'image', format: meta.format, bytes: buf.length,
     width: rotated ? meta.height : meta.width, height: rotated ? meta.width : meta.height,
-    space: meta.space, hasExif: Boolean(meta.exif), hasGps: Boolean(meta.exif && /GPS/i.test(meta.exif.toString('latin1'))),
+    space: meta.space, hasExif: Boolean(meta.exif), hasGps: hasGpsTag(meta.exif), // R-a: 글자 "GPS"가 아니라 EXIF GPS 칸(0x8825)
   };
 }
 

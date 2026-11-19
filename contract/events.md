@@ -1,9 +1,10 @@
-# 신호 약속 · 대장 창 ↔ 도우미 ↔ 미리보기 창 (약속 v1.4 · PC9 · 2026-11-18 · v1.3 PC11 · v1.4 PC9 11-19)
+# 신호 약속 · 대장 창 ↔ 도우미 ↔ 미리보기 창 (약속 v1.5 · PC9 · 2026-11-18 · v1.3 PC11 · v1.4 · v1.5 PC9 11-19)
 
 > v1.1 바뀐 점(11-18 · 1단계): ① 놓기 = 한 번(`POST /api/drop?key=&target=` · 몸통 = 파일 그대로 · 머리 `x-file-name`) — v1의 upload + drop 두 번을 합침 ② `slot.updated`에 `urls: { pc, mobile, video }` · `warnings` 추가 ③ `slot.selected`에 `paths` 추가(그 칸이 보이는 주소) ④ 명령 주소 = `POST /api/<명령>` 그대로
 > v1.2 바뀐 점(11-18 18:00 통합): 오류 신호 이름 `error` → **`helper.error`**(EventSource는 이름이 `error`인 신호를 연결 끊김과 구별하지 못함 → 미리보기 창에 "연결 끊김"이 잘못 뜸) · 미리보기 창(PC11)은 `helper.error`로 받아 주세요
 > v1.3 바뀐 점(11-19 · PC11-스튜디오-3 · PC9 확인 11-19 17:20): 휴대폰 자르기 **초점** — ① 명령 `focus` 추가 ② `slot.updated`에 `focus?: { x, y }`(0~1 · 그림 왼쪽 위 = 0,0) ③ 상태 `trial.focus` ④ 확정 `.json`에 `focus` · 모두 **있어도 되고 없어도 되는** 칸(없으면 가운데) → v1.2 창 · 도우미와 그대로 맞음
 > v1.4 바뀐 점(11-19 · PC9 · G1 판): ① `confirm`에 `replace?: true` — 같은 칸에 확정 대기 요청(요청\ 안 그 칸 .json)이 있으면 오류 `ALREADY_REQUESTED` + `error.detail.pending[]` → 대장 "앞 요청 바꾸기"(replace) / "취소" · 바꾸면 앞 요청은 `이전\_바뀐요청\`(지우지 않음) ② 신호 `slot.overwritten` `{ key, slotId, by, at, revision, mine }` — 내가 쓴 상태 파일을 5 · 15초 뒤 다시 읽어 다른 컴퓨터가 덮었으면(V5 S2 · 1초 안 동시 쓰기) · 미리보기는 무시해도 됨 ③ 오류 응답에 `detail?` · 모두 있어도 되고 없어도 되는 칸 → v1.3 창과 그대로 맞음
+> v1.5 바뀐 점(11-19 · PC9 · G1 판 2 · PC6 고칠 점): ① 도우미는 `Host`가 localhost가 아니면 403 `HOST`(R-c · 창은 늘 localhost로 열어 그대로) ② `_시험` · 확정 요청 파일 확장자 = 내용에서 알아낸 형식(R-b · 놓은 이름 확장자 X) ③ GPS 경고 = EXIF GPS 칸(0x8825) 있을 때만(R-a) ④ `GET /api/status`에 `warnings?: string[]`(R-1 방화벽 규칙 없음 등 · 대장 위 빨간 띠) · 미리보기 창은 바꿀 것 없음
 
 ## 1. 연결
 | 쪽 | 주소 |
@@ -53,6 +54,7 @@
 | `UNKNOWN_SLOT` | 칸 목록에 없는 key |
 | `SITE_NOT_READY` | 쇼핑몰 사본이 아직 안 켜짐 |
 | `BUSY` | 같은 칸을 다른 컴퓨터가 바꾸는 중(상태 파일 revision 충돌) |
+| `HOST` (v1.5) | 머리 `Host`가 localhost · 127.0.0.1 · [::1]이 아님 → 403(모든 주소) |
 
 ## 5. 규칙
 - 순서: 같은 칸에 대한 명령은 도우미가 한 줄로 차례대로 처리

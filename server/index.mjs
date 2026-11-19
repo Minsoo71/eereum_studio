@@ -11,6 +11,7 @@ import { inspect, forSite, thumb, StudioError } from './images.mjs';
 import { readState, ensureState, writeState, findConflicts, watchMine } from './state.mjs';
 import { subscribe, emit, clientCount } from './events.mjs';
 import { pendingRequests, moveToReplaced } from './requests.mjs';
+import { extFor, safeExt, isLocalHost, hasDbFirewallRule } from './safety.mjs';
 import { startSite, stopSite, siteState, clearImageCache, siteLog, updateSite, startData } from './site.mjs';
 import { listVariants, createVariantRunner } from '../preview/variant.mjs';
 import sharp from 'sharp';
@@ -20,6 +21,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REGISTER = path.join(HERE, '../register');
 const PREVIEW = path.join(HERE, '../preview');
 let register = null; // 지금 칸 목록
+const safetyWarnings = []; // 대장 위 경고(R-1 방화벽 규칙 없음 등) · /api/status warnings
 const thumbCache = new Map();
 
 async function rebuild(reason = 'start') {
@@ -84,7 +86,8 @@ async function drop({ key, target = 'both', name = '', focus = CENTER }, body) {
   // 1) 놓은 원본을 공유 폴더 _시험\<키>\에 보관(확정 때 이 원본을 요청으로 보냄)
   const trialDir = path.join(config.dirs.trial, key);
   mkdirSync(trialDir, { recursive: true });
-  const trialName = `${stamp()}_${safeDesc(path.parse(name).name)}${path.extname(name).toLowerCase() || (info.media === 'video' ? '.mp4' : '.jpg')}`;
+  // R-b: 확장자 = 내용에서 알아낸 형식(놓은 이름의 확장자는 믿지 않음 · jpg를 x.html로 놓아도 .jpg) → 확정 요청도 같은 확장자
+  const trialName = `${stamp()}_${safeDesc(path.parse(name).name)}${extFor(info.format) ?? (info.media === 'video' ? '.mp4' : '.jpg')}`;
   writeFileSync(path.join(trialDir, trialName), body);
   const warnings = [];
   const urls = {};
@@ -194,7 +197,8 @@ function confirm({ key, license, ai = false, altKo = null, note = '', replace = 
   }
   const replaced = pending.length ? moveToReplaced(config.dirs.request, config.dirs.previous, pending) : [];
   const src = path.join(config.dirs.trial, state.trial.file);
-  const ext = path.extname(src);
+  const ext = safeExt(src, existsSync(src) ? readFileSync(src).subarray(0, 32) : null); // R-b
+  if (!ext) throw new StudioError('FILE_TYPE', '시험 그림의 형식을 알 수 없어요. 다시 놓아 주세요.');
   const base = `${slot.slotId}_${stamp()}_${safeDesc(note || slot.position.split(/[ ·(]/)[0])}`;
   mkdirSync(config.dirs.request, { recursive: true });
   copyFileSync(src, path.join(config.dirs.request, `${base}${ext}`));
@@ -222,6 +226,8 @@ const STATIC = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; c
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${config.ports.helper}`);
   // 같은 컴퓨터의 창만(다른 사이트가 이 도우미를 부르지 못하게)
+  // R-c: Host가 이 컴퓨터(localhost · 127.0.0.1 · [::1])가 아니면 거절(DNS 바꿔치기로 다른 이름을 붙여 읽는 것 막음)
+  if (!isLocalHost(req.headers.host)) return send(res, 403, { ok: false, error: { code: 'HOST', message: '이 컴퓨터(localhost) 주소로만 열 수 있어요.' } });
   const origin = req.headers.origin;
   if (origin && !/^http:\/\/localhost:(4300|4301|4302)$/.test(origin)) return send(res, 403, { ok: false, error: { code: 'ORIGIN', message: '이 컴퓨터의 스튜디오 창에서만 쓸 수 있어요.' } });
   try {
@@ -241,7 +247,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && url.pathname === '/api/preview-config') return send(res, 200, { ok: true, siteOrigin: config.siteOrigin, variantOrigin: config.variantOrigin });
     if (req.method === 'GET' && url.pathname === '/api/variants') return send(res, 200, { ok: true, variants: await listVariants(config.site, { all: url.searchParams.get('all') === '1' }) });
     if (req.method === 'GET' && url.pathname === '/api/events') return subscribe(req, res);
-    if (req.method === 'GET' && url.pathname === '/api/status') return send(res, 200, { ok: true, site: siteState(), siteOrigin: config.siteOrigin, repoCommit: register?.source.repoCommit, machine: config.machine, clients: clientCount(), conflicts: findConflicts() });
+    if (req.method === 'GET' && url.pathname === '/api/status') return send(res, 200, { ok: true, site: siteState(), siteOrigin: config.siteOrigin, repoCommit: register?.source.repoCommit, machine: config.machine, clients: clientCount(), conflicts: findConflicts(), warnings: safetyWarnings });
     if (req.method === 'GET' && url.pathname === '/api/site-log') return send(res, 200, siteLog(), 'text/plain; charset=utf-8');
     if (req.method === 'GET' && url.pathname === '/api/slots') {
       return send(res, 200, { ok: true, ...register, states: Object.fromEntries(register.slots.map((s) => [s.key, readState(s.key)])), siteOrigin: config.siteOrigin });
@@ -308,6 +314,12 @@ await rebuild('start');
 server.listen(config.ports.helper, '127.0.0.1', () => {
   console.log(`스튜디오 도우미: http://localhost:${config.ports.helper}/register  (칸 ${register.slots.length}개 · 사이트 ${register.source.repoCommit})`);
   if (process.env.STUDIO_NO_SITE !== '1') {
+    if (process.env.STUDIO_DB === '1') {
+      // R-1: 내장 DB 관리 포트 51213은 prisma dev가 모든 주소로 엶 → 설치 때 만든 방화벽 규칙이 없으면 대장에 경고
+      hasDbFirewallRule().then((has) => {
+        if (has === false) { safetyWarnings.push('내장 DB 관리 포트(51213)를 막는 방화벽 규칙이 없어요 → 같은 망의 다른 컴퓨터가 들어올 수 있어요. 설치를 -WithDb로 다시 하거나(관리자 허락 한 번) 데이터 화면이 필요 없으면 DB 없이 여세요. Windows 방화벽 허용 창이 뜨면 "허용 안 함".'); emit('helper.status', { warnings: safetyWarnings }); }
+      });
+    }
     if (process.env.STUDIO_DB === '1') startData().then(() => emit('helper.status', { data: 'ready' })).catch((e) => emit('helper.status', { data: 'failed', message: e.message }));
     startSite();
   }

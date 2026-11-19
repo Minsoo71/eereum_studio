@@ -1,4 +1,4 @@
-# eereum 이미지 스튜디오 설치 (M4 · Windows PowerShell 5.1 · 관리자 권한 필요 없음)
+# eereum 이미지 스튜디오 설치 (M4 · Windows PowerShell 5.1 · 관리자 권한 필요 없음 · -WithDb일 때만 방화벽 규칙에 관리자 허락 한 번)
 # 쓰는 법:  powershell -ExecutionPolicy Bypass -File scripts\install.ps1
 # 하는 일: ① Node 26 확인 ② 백신 인증서 설정 ③ 쇼핑몰 사본(D:\eereum_studio\site · 영문 경로 · 쇼핑몰 저장소 main · 읽기만) 준비 · 설치
 #          ④ 스튜디오(이 저장소 · D:\eereum_studio\app) 설치 ⑤ 내장 DB prisma dev 0.16.28 미리 받기(선택) ⑥ 바탕화면 "이미지 스튜디오 열기"
@@ -44,6 +44,18 @@ if ($WithDb) {
   Push-Location (Join-Path $site 'packages\db')
   & node node_modules\prisma\build\index.js dev '@0.16.28' --help | Out-Null
   Pop-Location
+
+  # R-1(PC6 11-19): prisma dev가 관리 포트 51213을 모든 주소로 엶(주소 옵션 없음) → 밖에서 들어오기 막는 방화벽 규칙
+  # (같은 컴퓨터 안 localhost 연결은 Windows 방화벽이 막지 않음 · 스튜디오는 그대로 씀)
+  $rule = 'eereum studio - block DB 51213'
+  if (Get-NetFirewallRule -DisplayName $rule -ErrorAction SilentlyContinue) { Write-Host "  방화벽 규칙 이미 있음: $rule" }
+  else {
+    Write-Host '  방화벽 규칙 만들기 → Windows "변경 허용" 창에서 [예]를 눌러 주세요(관리자 허락 한 번).' -ForegroundColor Yellow
+    $cmd = "New-NetFirewallRule -DisplayName '$rule' -Direction Inbound -Protocol TCP -LocalPort 51213-51216 -Action Block -Profile Any | Out-Null"
+    try { Start-Process powershell.exe -Verb RunAs -Wait -ArgumentList '-NoProfile', '-Command', $cmd } catch { Write-Warning '관리자 허락을 받지 못했어요.' }
+    if (Get-NetFirewallRule -DisplayName $rule -ErrorAction SilentlyContinue) { Write-Host "  방화벽 규칙 만듦: $rule" -ForegroundColor Green }
+    else { Write-Warning '방화벽 규칙이 없어요 → 데이터 화면(-WithDb)을 켜면 대장에 경고가 떠요. Windows 방화벽 허용 창이 뜨면 "허용 안 함"을 누르세요.' }
+  }
 }
 
 Step 6 '공유 폴더 확인 · 바탕화면 바로 가기'

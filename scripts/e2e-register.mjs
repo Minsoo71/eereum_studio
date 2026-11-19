@@ -1,11 +1,14 @@
 // 대장 창 끝까지 시험(수동 · 도우미 + 사본 켠 채로): node scripts/e2e-register.mjs <쇼핑몰 저장소 경로(@playwright/test 빌려 씀)>
+// R-d: 경로는 도우미와 같은 환경 변수(STUDIO_SITE · STUDIO_ROOT · STUDIO_SHARE)를 따름 → 임시 공유 폴더로 시험 가능(진짜 공유 폴더 안 건드림)
 import { createRequire } from 'node:module';
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import path from 'node:path';
+import { config } from '../server/config.mjs';
 const repo = process.argv[2] ?? 'D:/dev/eereum_ring';
 const { chromium } = createRequire(repo + '/')('@playwright/test');
-const SITE = 'D:/eereum_studio/site/apps/web/public';
-const SHARE = 'D:/Synology Drive VISCOM/eeruem/이미지교체';
+const SITE = config.publicDir.split(path.sep).join('/');
+const SHARE = config.share.split(path.sep).join('/');
+console.log(`사본 ${SITE} · 공유 ${SHARE}`);
 const KEY = 'home.story';
 const res = [];
 const ok = (n, c, note = '') => { const l = `${c ? 'PASS' : 'FAIL'} · ${n}${note ? ' · ' + note : ''}`; res.push(l); console.log(l); };
@@ -19,7 +22,8 @@ const events = [];
 await p.exposeFunction('__ev', (e) => events.push(e));
 await p.goto('http://localhost:4300/register');
 await p.waitForSelector(`tr[data-key="${KEY}"]`);
-ok('대장 창 열림 · 칸 39', (await p.locator('tr[data-key]').count()) === 39, String(await p.locator('tr[data-key]').count()));
+const slotCount = (await (await fetch('http://localhost:4300/api/slots')).json()).slots.length;
+ok(`대장 창 열림 · 칸 ${slotCount}`, (await p.locator('tr[data-key]').count()) === slotCount, String(await p.locator('tr[data-key]').count()));
 await p.evaluate(() => { const es = new EventSource('/api/events'); for (const n of ['slot.updated', 'slot.selected', 'register.rebuilt']) es.addEventListener(n, (e) => window.__ev({ n, d: JSON.parse(e.data) })); });
 // 칸 고르기 → slot.selected
 await p.locator(`tr[data-key="${KEY}"] td.pos, tr[data-key="${KEY}"] .pos`).first().click();

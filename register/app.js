@@ -163,6 +163,12 @@ async function status() {
   const c = s.conflicts ?? [];
   warn.hidden = !c.length;
   warn.innerHTML = c.length ? `<b>⚠ 두 컴퓨터가 같은 파일을 동시에 고쳐 충돌 사본 ${c.length}개가 생겼어요.</b> 자동으로 지우지 않아요 — 어느 쪽을 남길지 PC9에게 알려 주세요.<ul>${c.map((x) => `<li><code>이미지교체/${esc(x)}</code></li>`).join('')}</ul>` : '';
+  // R-1 등 안전 경고(도우미가 시작 때 확인)
+  let safe = $('#safety');
+  if (!safe) { safe = document.createElement('div'); safe.id = 'safety'; safe.className = 'conflicts'; safe.setAttribute('role', 'alert'); $('#pages').before(safe); }
+  const w = s.warnings ?? [];
+  safe.hidden = !w.length;
+  safe.innerHTML = w.map((x) => `<b>⚠</b> ${esc(x)}`).join('<br>');
 }
 
 const es = new EventSource('/api/events');
