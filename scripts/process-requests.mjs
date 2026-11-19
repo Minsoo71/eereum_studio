@@ -89,7 +89,7 @@ for (const r of requests) {
         writeFileSync(path.join(site, 'apps/web/public', mUrl), mOut);
         if (mediaTs.includes(`'${m.url}'`)) { mediaTs = mediaTs.replace(`'${m.url}'`, `'${mUrl}'`); row.mobile = { from: m.url, to: mUrl, focus: f }; }
         else problems.push(`${r.file}: media.ts에서 휴대폰 파일 '${m.url}'를 못 찾음(초점 반영 못 함)`);
-      } else {
+      } else if (f.x !== 0.5 || f.y !== 0.5) { // 가운데면 그대로(놓기 기본값 · 'center'를 '0.5 0.5'로 괜히 바꾸지 않음)
         const next = setFocusInMedia(mediaTs, slot.key, f);
         if (next) { mediaTs = next; row.focus = f; } else problems.push(`${r.file}: media.ts에서 '${slot.key}'의 focus를 못 찾음(초점 반영 못 함)`);
       }
