@@ -13,6 +13,9 @@ import { config } from '../server/config.mjs';
 import { buildSlots } from '../server/slots.mjs';
 import { forSite } from '../server/images.mjs';
 import { readState, writeState } from '../server/state.mjs';
+import sharp from 'sharp';
+import { clampFocus, cropForMobile, hasMobileFile, mobileRatio } from '../preview/focus.mjs';
+import { setFocusInMedia } from '../server/media-edit.mjs';
 
 const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
@@ -74,6 +77,23 @@ for (const r of requests) {
     writeFileSync(path.join(site, 'apps/web/public', newUrl), out);
     if (!mediaTs.includes(`'${cur.url}'`)) { problems.push(`${r.file}: media.ts에서 '${cur.url}'를 못 찾음`); continue; }
     mediaTs = mediaTs.replace(`'${cur.url}'`, `'${newUrl}'`);
+    // 초점(약속 v1.3 · 기능 ①): 휴대폰 파일이 따로 있는 칸 = 그 점 둘레로 잘라 새 휴대폰 파일 · 한 파일 칸 = media.ts focus 'x y'
+    if (r.meta?.focus && r.target === 'pc') {
+      const f = clampFocus(r.meta.focus);
+      if (hasMobileFile(slot)) {
+        const m = slot.current.mobile;
+        const ratio = mobileRatio(slot);
+        const cut = ratio ? (await cropForMobile(sharp, src, ratio, f)).data : src;
+        const mOut = await forSite(cut, { format: path.extname(m.url).slice(1).replace('jpeg', 'jpg'), width: Math.max(m.width ?? 0, slot.spec.minWidth) });
+        const mUrl = nextName(m.url);
+        writeFileSync(path.join(site, 'apps/web/public', mUrl), mOut);
+        if (mediaTs.includes(`'${m.url}'`)) { mediaTs = mediaTs.replace(`'${m.url}'`, `'${mUrl}'`); row.mobile = { from: m.url, to: mUrl, focus: f }; }
+        else problems.push(`${r.file}: media.ts에서 휴대폰 파일 '${m.url}'를 못 찾음(초점 반영 못 함)`);
+      } else {
+        const next = setFocusInMedia(mediaTs, slot.key, f);
+        if (next) { mediaTs = next; row.focus = f; } else problems.push(`${r.file}: media.ts에서 '${slot.key}'의 focus를 못 찾음(초점 반영 못 함)`);
+      }
+    }
     // 옛 파일 보관(이전\<키>\ · 최근 2개 판)
     const keep = path.join(config.share, '이전', slot.key);
     mkdirSync(keep, { recursive: true });
@@ -93,7 +113,7 @@ for (const r of requests) {
 }
 
 // 5) 커밋 + PR 설명 초안
-const body = `# 그림 교체 ${STAMP} (M5 · PC9)\n\n| 칸 | 키 | 바뀐 파일 | 크기 | 출처 · 라이선스 | AI | 메모 |\n|---|---|---|---|---|---|---|\n${done.map((d) => `| ${d.slotId} | \`${d.key}\` | \`${d.from}\` → \`${d.to}\` | ${Math.round(d.bytes / 1024)}KB | ${d.license} | ${d.ai === null ? '?' : d.ai ? '예' : '아니요'} | ${d.note ?? ''} |`).join('\n')}\n\n- 새 파일 이름(-vN)이라 손님 브라우저 캐시에 옛 그림이 남지 않음\n- 옛 파일은 저장소에 남겨 둠(지우기는 별도 승인) · 원본 보관 \`이전\\<키>\\\`\n${done.some((d) => d.altKo) ? '- ⚠ 대체 글 바꾸기 요청 있음 → 번역(en · ja · zh) 같이 고쳐야 해서 이 PR에 넣지 않음(따로)\n' : ''}- 확인: B(화면) · \`pnpm test:content\` · 사용자 승인 뒤 합치기\n${problems.length ? `\n## 처리 못 한 요청\n${problems.map((p) => `- ${p}`).join('\n')}\n` : ''}`;
+const body = `# 그림 교체 ${STAMP} (M5 · PC9)\n\n| 칸 | 키 | 바뀐 파일 | 크기 | 출처 · 라이선스 | AI | 메모 |\n|---|---|---|---|---|---|---|\n${done.map((d) => `| ${d.slotId} | \`${d.key}\` | \`${d.from}\` → \`${d.to}\`${d.mobile ? ` · 휴대폰 \`${d.mobile.to}\`(초점 ${d.mobile.focus.x} ${d.mobile.focus.y})` : ''}${d.focus ? ` · 초점 ${d.focus.x} ${d.focus.y}` : ''} | ${Math.round(d.bytes / 1024)}KB | ${d.license} | ${d.ai === null ? '?' : d.ai ? '예' : '아니요'} | ${d.note ?? ''} |`).join('\n')}\n\n- 새 파일 이름(-vN)이라 손님 브라우저 캐시에 옛 그림이 남지 않음\n- 옛 파일은 저장소에 남겨 둠(지우기는 별도 승인) · 원본 보관 \`이전\\<키>\\\`\n${done.some((d) => d.altKo) ? '- ⚠ 대체 글 바꾸기 요청 있음 → 번역(en · ja · zh) 같이 고쳐야 해서 이 PR에 넣지 않음(따로)\n' : ''}- 확인: B(화면) · \`pnpm test:content\` · 사용자 승인 뒤 합치기\n${problems.length ? `\n## 처리 못 한 요청\n${problems.map((p) => `- ${p}`).join('\n')}\n` : ''}`;
 if (!DRY && done.length) {
   writeFileSync(mediaPath, mediaTs);
   git(WT, 'add', '-A', 'apps/web/public/media', 'content/media.ts');

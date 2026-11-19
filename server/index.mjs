@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { config } from './config.mjs';
 import { buildSlots, diffSlots } from './slots.mjs';
 import { inspect, forSite, thumb, StudioError } from './images.mjs';
-import { readState, ensureState, writeState, findConflicts } from './state.mjs';
+import { readState, ensureState, writeState, findConflicts, watchMine } from './state.mjs';
 import { subscribe, emit, clientCount } from './events.mjs';
 import { pendingRequests, moveToReplaced } from './requests.mjs';
 import { startSite, stopSite, siteState, clearImageCache, siteLog, updateSite, startData } from './site.mjs';
@@ -51,6 +51,16 @@ const stamp = () => {
   return `${d.slice(0, 10).replace(/-/g, '')}-${d.slice(11, 16).replace(':', '')}`;
 };
 const safeDesc = (s) => (s ?? '').replace(/\s+/g, '-').replace(/[^가-힣A-Za-z0-9-]/g, '').slice(0, 30) || '새그림';
+
+/** 상태 쓰기 + V5-1 S2 대책: 몇 초 뒤 다른 컴퓨터가 덮었으면 대장에 알림(slot.overwritten · 약속 v1.4) */
+function saveState(next, expectRevision) {
+  const out = writeState(next, expectRevision);
+  watchMine(out, (cur) => {
+    const by = String(cur.updatedBy ?? '').replace(/^studio@/, '') || '다른 컴퓨터';
+    emit('slot.overwritten', { key: out.key, slotId: cur.slotId ?? out.slotId, by, at: cur.updatedAt, revision: cur.revision, mine: { at: out.updatedAt, trial: out.trial?.file ?? null } });
+  });
+  return out;
+}
 
 // ── 명령 ──
 /** 휴대폰 파일 = 휴대폰 비율로 점 둘레를 자른 뒤 줄임(PC11-스튜디오-3 · 기본 가운데) */
@@ -107,7 +117,7 @@ async function drop({ key, target = 'both', name = '', focus = CENTER }, body) {
   }
   const lane = info.media;
   const next = { ...state, [lane]: { state: 'trial', file: urls.pc ?? urls.video }, trial: { file: `${key}/${trialName}`, media: lane, placedAt: new Date(v).toISOString(), machine: config.machine, ...(lane === 'image' ? { focus: clampFocus(focus) } : {}) } };
-  const saved = writeState(next, state.revision);
+  const saved = saveState(next, state.revision);
   emit('slot.updated', { key, slotId: slot.slotId, lane, state: 'trial', url: urls.pc ?? urls.mobile ?? urls.video, urls, version: v, warnings, info: { width: info.width, height: info.height, bytes: info.bytes, format: info.format }, ...(lane === 'image' ? { focus: clampFocus(focus) } : {}) });
   return { state: saved, urls, warnings };
 }
@@ -124,7 +134,7 @@ async function setFocus({ key, x, y, reset = false }) {
     urls.mobile = (await writeMobile(slot, readFileSync(path.join(config.dirs.trial, state.trial.file)), focus, v)).url;
     clearImageCache();
   }
-  const saved = writeState({ ...state, trial: { ...state.trial, focus } }, state.revision);
+  const saved = saveState({ ...state, trial: { ...state.trial, focus } }, state.revision);
   // 휴대폰 파일만 바꿈(urls.mobile) · 한 파일 칸은 focus로 화면 위치만(bridge object-position)
   emit('slot.updated', { key, slotId: slot.slotId, lane: 'image', state: 'trial', urls, focus, version: v });
   return { state: saved, focus, urls };
@@ -140,7 +150,7 @@ function revert({ key }) {
   const v = Date.now();
   const lane = state?.trial?.media ?? 'image';
   const next = { ...state, [lane]: { state: lane === 'image' ? 'live' : 'empty', ...(lane === 'image' ? { file: slot.current.pc.url } : {}) }, trial: null };
-  const saved = writeState(next, state?.revision ?? null);
+  const saved = saveState(next, state?.revision ?? null);
   emit('slot.updated', { key, slotId: slot.slotId, lane, state: lane === 'image' ? 'live' : 'empty', url: `${slot.current.pc.url}?v=${v}`, urls: { pc: `${slot.current.pc.url}?v=${v}`, ...(slot.current.mobile ? { mobile: `${slot.current.mobile.url}?v=${v}` } : {}) }, version: v });
   return { state: saved };
 }
@@ -191,7 +201,7 @@ function confirm({ key, license, ai = false, altKo = null, note = '', replace = 
   const meta = { version: 1, key, slotId: slot.slotId, media: state.trial.media, files: { [state.trial.media === 'video' ? 'video' : 'pc']: `${base}${ext}` }, license, ai: Boolean(ai), altKo: altKo || null, note, ...(state.trial.focus ? { focus: state.trial.focus } : {}), machine: config.machine, requestedAt: new Date().toISOString() };
   writeFileSync(path.join(config.dirs.request, `${base}.json`), JSON.stringify(meta, null, 2));
   const lane = state.trial.media;
-  const saved = writeState({ ...state, [lane]: { ...state[lane], state: 'requested' }, request: { file: `${base}${ext}`, requestedAt: meta.requestedAt, license, ai: Boolean(ai), ...(altKo ? { altKo } : {}) } }, state.revision);
+  const saved = saveState({ ...state, [lane]: { ...state[lane], state: 'requested' }, request: { file: `${base}${ext}`, requestedAt: meta.requestedAt, license, ai: Boolean(ai), ...(altKo ? { altKo } : {}) } }, state.revision);
   emit('slot.updated', { key, slotId: slot.slotId, lane, state: 'requested', file: `${base}${ext}`, version: Date.now() });
   return { file: `${base}${ext}`, state: saved, replaced };
 }

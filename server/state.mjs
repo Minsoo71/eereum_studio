@@ -43,6 +43,25 @@ export function writeState(next, expectRevision) {
 
 export const stateExists = (key) => existsSync(file(key));
 
+/** V5-1 S2 대책: 두 컴퓨터가 1초 안에 같은 칸을 쓰면 BUSY가 못 막고 Synology가 충돌 사본 없이 조용히 덮음
+ *  → 쓴 뒤 몇 초 뒤 다시 읽어 쓴 컴퓨터(updatedBy)가 내가 아니면 onLost(지금 파일) 한 번 부름 */
+export function watchMine(written, onLost, delays = [5000, 15000], read = readState) {
+  const timers = [];
+  let done = false;
+  for (const ms of delays) {
+    const t = setTimeout(() => {
+      if (done) return;
+      const cur = read(written.key);
+      if (cur && cur.updatedBy !== written.updatedBy) { // 내가 또 쓴 것(놓기 → 확정)은 알림 아님
+        done = true; timers.forEach(clearTimeout); onLost(cur);
+      }
+    }, ms);
+    t.unref?.();
+    timers.push(t);
+  }
+  return () => { done = true; timers.forEach(clearTimeout); };
+}
+
 /** V5 S2: Synology 동기화 충돌 사본 찾기(자동으로 지우지 않음 · 대장 맨 위 경고만)
  *  찾는 곳: _상태 · 요청 · _시험(한 단계 아래까지) · 이름에 (Conflict · _Conflict · _충돌 · conflicted copy */
 const CONFLICT = /\(conflict|_conflict|_충돌|conflicted copy/i;

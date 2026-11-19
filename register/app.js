@@ -173,6 +173,14 @@ es.addEventListener('slot.updated', async (ev) => {
   data.states = st.states;
   rerenderRow(d.key);
 });
+// V5-1 S2 대책(약속 v1.4): 같은 칸을 거의 동시에 다른 컴퓨터가 바꿔서 내 것이 덮였을 때
+es.addEventListener('slot.overwritten', async (ev) => {
+  const d = JSON.parse(ev.data);
+  toast(`${d.slotId}: 다른 컴퓨터(${d.by})가 방금 이 칸을 바꿨어요. 지금 상태는 그쪽 것이에요 — 내 그림을 쓰려면 다시 놓아 주세요(놓은 원본은 _시험 폴더에 그대로).`, true);
+  const st = await (await fetch('/api/slots')).json();
+  data.states = st.states;
+  rerenderRow(d.key);
+});
 es.addEventListener('slot.selected', (ev) => { const d = JSON.parse(ev.data); if (d.from !== 'register' && d.key !== selected) select(d.key, false); });
 es.addEventListener('register.rebuilt', (ev) => { const d = JSON.parse(ev.data); if (d.reason !== 'start') load(); });
 es.addEventListener('helper.status', () => status());
