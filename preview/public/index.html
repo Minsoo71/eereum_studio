@@ -45,6 +45,20 @@
     <span id="toast" class="toast" role="status" aria-live="polite"></span>
   </div>
 
+  <section id="focus" class="focusbar" hidden aria-label="휴대폰 자르기 초점">
+    <div class="fpic" id="fpic" title="꼭 보여야 할 곳을 누르세요">
+      <img id="fimg" alt="놓은 그림" draggable="false">
+      <div id="fbox" class="fbox" hidden></div>
+      <span id="fdot" class="fdot"></span>
+    </div>
+    <div class="ftext">
+      <strong>휴대폰 초점 · <span id="fkey"></span></strong>
+      <span id="fhint">그림에서 꼭 보여야 할 곳을 누르세요. 휴대폰 화면이 자를 때 그 점을 남겨요.</span>
+      <span id="fval" class="fval"></span>
+      <div class="fbtns"><button id="freset" type="button">가운데로</button></div>
+    </div>
+  </section>
+
   <main id="stage" class="stage"></main>
 
   <script type="module" src="preview.js"></script>

@@ -6,6 +6,7 @@
  * 받는 것(부모 → 이 화면):
  *   { type: 'studio:select', key }                         → 그 칸으로 스크롤 + 1.5초 테두리
  *   { type: 'studio:update', key, lane, url, version }      → 그 칸 그림(또는 영상)을 url?v=version으로 바꿔 끼움
+ *     (+ focus {x,y}: 한 파일 칸은 object-position · 배경은 background-position · PC11-스튜디오-3)
  *   { type: 'studio:scrollTo', ratio }                      → 나란히 보기 스크롤 맞추기
  *   { type: 'studio:hello' }                                → 지금 칸 목록 다시 보냄
  * 보내는 것(이 화면 → 부모):
@@ -135,6 +136,16 @@
     }, 350);
   }
 
+  /** 초점 점 { x, y }(0~1) → CSS 위치 글자 · 이상하면 null (PC11-스튜디오-3) */
+  function focusCss(f) {
+    if (!f || typeof f !== 'object') return null;
+    var x = Number(f.x);
+    var y = Number(f.y);
+    if (!isFinite(x) || !isFinite(y)) return null;
+    var p = function (n) { return Math.round(Math.min(1, Math.max(0, n)) * 1000) / 10 + '%'; };
+    return p(x) + ' ' + p(y);
+  }
+
   function apply(msg) {
     var key = msg.key;
     var version = Number(msg.version) || Date.now();
@@ -148,6 +159,7 @@
     var lane = msg.lane === 'video' ? 'video' : 'image';
     var urls = pickUrls(msg);
     var count = 0;
+    var pos = lane === 'image' ? focusCss(msg.focus) : null;
     els.forEach(function (el) {
       if ((el.getAttribute('data-slot-kind') || '') === 'background') {
         var bgUrl = urls.pc || urls.mobile;
@@ -155,6 +167,7 @@
           el.style.backgroundImage = 'url("' + withVersion(bgUrl, version) + '")';
           count++;
         }
+        if (pos) el.style.backgroundPosition = pos;
         return;
       }
       if (lane === 'video') {
@@ -178,6 +191,8 @@
         img.src = withVersion(u, version);
         count++;
       });
+      // 초점: 한 파일을 같이 쓰는 칸만 화면 위치로(<picture> 칸은 도우미가 휴대폰 파일을 다시 자름 · PC 위치는 그대로)
+      if (pos && !sources.length) imgs.forEach(function (img) { img.style.objectPosition = pos; });
       // <picture> 안 <source>: 모바일 · PC 따로 (약속 v1.1 urls.pc · urls.mobile)
       sources.forEach(function (s) {
         var u = s.media && /min-width/.test(s.media) ? urls.pc : s.media ? urls.mobile : urls.pc;

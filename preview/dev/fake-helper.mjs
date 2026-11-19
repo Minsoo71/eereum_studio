@@ -132,8 +132,17 @@ const helper = http.createServer(async (req, res) => {
     const s = contract.slots.find((x) => x.key === body.key);
     if (!s) return fail(res, 'UNKNOWN_SLOT', body.key);
     const other = contract.slots.find((x) => x.key !== s.key && x.current?.pc?.url && x.current.pc.url !== s.current?.pc?.url);
-    emit('slot.updated', { key: s.key, slotId: s.slotId, lane: 'image', state: 'trial', url: body.url || other.current.pc.url, version: Date.now(), variant: body.variant ?? null });
+    const url = body.url || other.current.pc.url;
+    emit('slot.updated', { key: s.key, slotId: s.slotId, lane: 'image', state: 'trial', url, urls: { pc: url }, focus: { x: 0.5, y: 0.5 }, version: Date.now(), variant: body.variant ?? null });
     return json(res, 200, { ok: true });
+  }
+  if (p === '/api/focus') {
+    // 초점 고르기(PC11-스튜디오-3) 흉내: 진짜 도우미는 휴대폰 파일을 다시 자름 · 여기선 점만 돌려줌(한 파일 칸처럼 object-position)
+    const s = contract.slots.find((x) => x.key === body.key);
+    if (!s) return fail(res, 'UNKNOWN_SLOT', body.key);
+    const focus = body.reset ? { x: 0.5, y: 0.5 } : { x: Number(body.x), y: Number(body.y) };
+    emit('slot.updated', { key: s.key, slotId: s.slotId, lane: 'image', state: 'trial', urls: {}, focus, version: Date.now() });
+    return json(res, 200, { ok: true, focus });
   }
   return notFound(res);
 });

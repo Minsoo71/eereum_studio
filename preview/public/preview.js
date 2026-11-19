@@ -18,6 +18,7 @@ const st = {
   selected: null,
   pendingSelect: null, // 페이지를 옮긴 뒤 고를 칸
   frames: [], // { el, role: 'public'|'variant', device }
+  trials: new Map(), // 칸 키 → { pc: 사본 PC 그림 주소, focus: {x,y} } (놓은 그림이 있는 칸 · 초점 고르기)
 };
 
 const $ = (s) => document.querySelector(s);
@@ -229,6 +230,81 @@ function onHidden(key, frame) {
   setView(other);
 }
 
+/* ---------- 휴대폰 초점 고르기 (PC11-스튜디오-3) ---------- */
+// preview/focus.mjs와 같은 계산(이 창은 도우미가 preview.js 한 파일만 주므로 여기 따로 둠 · 시험 focus.test가 둘을 맞춰 봄)
+function mobileRatioOf(slot) {
+  const m = slot?.current?.mobile;
+  if (m?.width && m?.height) return m.width / m.height;
+  const d = String(slot?.spec?.displayRatio ?? '').match(/모바일\s*(\d+(?:\.\d+)?)\s*:\s*(\d+(?:\.\d+)?)/);
+  return d ? Number(d[1]) / Number(d[2]) : null;
+}
+function cropBoxPct(w, h, ratio, f) {
+  let cw = w;
+  let ch = w / ratio;
+  if (ch > h) {
+    ch = h;
+    cw = h * ratio;
+  }
+  const left = Math.min(w - cw, Math.max(0, f.x * w - cw / 2));
+  const top = Math.min(h - ch, Math.max(0, f.y * h - ch / 2));
+  return { left: (left / w) * 100, top: (top / h) * 100, width: (cw / w) * 100, height: (ch / h) * 100 };
+}
+const newTrial = () => ({ pc: null, focus: { x: 0.5, y: 0.5 } });
+const clamp01 = (n) => Math.round(Math.min(1, Math.max(0, Number(n) || 0)) * 1000) / 1000;
+
+function renderFocus() {
+  const box = $('#focus');
+  const key = st.selected;
+  const t = key && st.trials.get(key);
+  const slot = key && slotByKey(key);
+  if (!t || !slot || !t.pc) {
+    box.hidden = true;
+    return;
+  }
+  box.hidden = false;
+  $('#fkey').textContent = `${slot.slotId ?? ''} ${key}`;
+  const img = $('#fimg');
+  const src = `${st.config.siteOrigin}${t.pc}`;
+  if (img.dataset.src !== src) {
+    img.dataset.src = src;
+    img.src = src;
+  }
+  const f = t.focus ?? { x: 0.5, y: 0.5 };
+  $('#fdot').style.left = `${f.x * 100}%`;
+  $('#fdot').style.top = `${f.y * 100}%`;
+  const ratio = mobileRatioOf(slot);
+  const fb = $('#fbox');
+  if (ratio && img.naturalWidth) {
+    const b = cropBoxPct(img.naturalWidth, img.naturalHeight, ratio, f);
+    Object.assign(fb.style, { left: `${b.left}%`, top: `${b.top}%`, width: `${b.width}%`, height: `${b.height}%` });
+    fb.hidden = false;
+  } else fb.hidden = true;
+  $('#fhint').textContent = slot.current?.mobile
+    ? '꼭 보여야 할 곳을 누르세요 → 휴대폰 그림을 그 점 둘레로 다시 잘라요(노란 테두리 = 휴대폰에 남는 곳).'
+    : '꼭 보여야 할 곳을 누르세요 → 화면이 그림을 자를 때 그 점을 남겨요(휴대폰 · PC 같은 그림).';
+  $('#fval').textContent = `점 x ${Math.round(f.x * 100)}% · y ${Math.round(f.y * 100)}%${f.x === 0.5 && f.y === 0.5 ? ' (가운데 · 기본)' : ''}`;
+}
+
+let focusTimer;
+function sendFocus(key, focus, reset = false) {
+  const t = st.trials.get(key);
+  if (!t) return;
+  t.focus = reset ? { x: 0.5, y: 0.5 } : { x: clamp01(focus.x), y: clamp01(focus.y) };
+  renderFocus();
+  clearTimeout(focusTimer);
+  focusTimer = setTimeout(() => {
+    api('focus', reset ? { key, reset: true } : { key, ...t.focus })
+      .then(() => status(`“${key}” 초점 저장 · 휴대폰 화면에 반영`))
+      .catch((err) => toast(`초점: ${err.message}`, true));
+  }, 120);
+}
+
+function trialFromState(slot, s) {
+  if (!s?.trial || s.trial.media !== 'image' || s.image?.state !== 'trial') return null;
+  const v = Date.parse(s.trial.placedAt) || Date.now();
+  return { pc: s.image?.file?.includes('?') ? s.image.file : `${slot.current?.pc?.url}?v=${v}`, focus: s.trial.focus ?? { x: 0.5, y: 0.5 } };
+}
+
 /* ---------- 신호 처리 (도우미 SSE · events.md) ---------- */
 function selectSlot(key, paths) {
   st.selected = key;
@@ -254,6 +330,7 @@ function selectSlot(key, paths) {
     }
   }
   renderChips();
+  renderFocus();
   broadcast({ type: 'studio:select', key });
 }
 
@@ -263,6 +340,16 @@ const handlers = {
     // variant(수정안)에서 놓은 그림은 수정안 창에만 · 아니면 공개본 창에만 (약속: 확정은 그 PR의 요청으로)
     const target = d.variant ? 'variant' : 'public';
     for (const f of st.frames) if (f.role === target) postTo(f, { type: 'studio:update', ...d });
+    // 초점 고르기: 놓은 그림(시험)이 있는 칸 기억 · 확정 · 되돌리기면 지움
+    if (!d.variant && d.key) {
+      if (d.state === 'trial' && d.lane !== 'video') {
+        const t = st.trials.get(d.key) || newTrial();
+        if (d.urls?.pc) t.pc = d.urls.pc;
+        if (d.focus) t.focus = d.focus;
+        st.trials.set(d.key, t);
+      } else if (d.state) st.trials.delete(d.key);
+      if (d.key === st.selected) renderFocus();
+    }
   },
   'register.rebuilt': (d) => {
     loadSlots().then(() => toast(`칸 목록 다시 만듦 · 새 칸 ${d.added?.length ?? 0} · 없어진 칸 ${d.removed?.length ?? 0}`));
@@ -305,7 +392,13 @@ async function loadSlots() {
   st.pages = j.pages || [];
   st.slots = j.slots || [];
   st.pageId ??= st.pages[0]?.pageId;
+  st.trials.clear();
+  for (const slot of st.slots) {
+    const t = trialFromState(slot, j.states?.[slot.key]);
+    if (t) st.trials.set(slot.key, t);
+  }
   renderPages();
+  renderFocus();
 }
 
 async function loadVariants(all = false) {
@@ -372,6 +465,24 @@ async function init() {
     renderStage();
     renderChips();
   };
+  // 초점: 그림을 누름 → 점 · 키보드(화살표 5%씩) · 가운데로
+  const fpic = $('#fpic');
+  fpic.tabIndex = 0;
+  fpic.addEventListener('click', (e) => {
+    const r = $('#fimg').getBoundingClientRect();
+    if (!st.selected || !r.width) return;
+    sendFocus(st.selected, { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height });
+  });
+  fpic.addEventListener('keydown', (e) => {
+    const t = st.selected && st.trials.get(st.selected);
+    const d = { ArrowLeft: [-0.05, 0], ArrowRight: [0.05, 0], ArrowUp: [0, -0.05], ArrowDown: [0, 0.05] }[e.key];
+    if (!t || !d) return;
+    e.preventDefault();
+    const f = t.focus ?? { x: 0.5, y: 0.5 };
+    sendFocus(st.selected, { x: f.x + d[0], y: f.y + d[1] });
+  });
+  $('#fimg').addEventListener('load', renderFocus);
+  $('#freset').onclick = () => st.selected && sendFocus(st.selected, null, true);
   let rt;
   window.addEventListener('resize', () => {
     clearTimeout(rt);

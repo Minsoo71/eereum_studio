@@ -1,7 +1,8 @@
-# 신호 약속 · 대장 창 ↔ 도우미 ↔ 미리보기 창 (약속 v1.2 · PC9 · 2026-11-18)
+# 신호 약속 · 대장 창 ↔ 도우미 ↔ 미리보기 창 (약속 v1.3 · PC9 · 2026-11-18 · v1.3 PC11 11-19)
 
 > v1.1 바뀐 점(11-18 · 1단계): ① 놓기 = 한 번(`POST /api/drop?key=&target=` · 몸통 = 파일 그대로 · 머리 `x-file-name`) — v1의 upload + drop 두 번을 합침 ② `slot.updated`에 `urls: { pc, mobile, video }` · `warnings` 추가 ③ `slot.selected`에 `paths` 추가(그 칸이 보이는 주소) ④ 명령 주소 = `POST /api/<명령>` 그대로
 > v1.2 바뀐 점(11-18 18:00 통합): 오류 신호 이름 `error` → **`helper.error`**(EventSource는 이름이 `error`인 신호를 연결 끊김과 구별하지 못함 → 미리보기 창에 "연결 끊김"이 잘못 뜸) · 미리보기 창(PC11)은 `helper.error`로 받아 주세요
+> v1.3 바뀐 점(11-19 · PC11-스튜디오-3 · **PC9 확인 부탁**): 휴대폰 자르기 **초점** — ① 명령 `focus` 추가 ② `slot.updated`에 `focus?: { x, y }`(0~1 · 그림 왼쪽 위 = 0,0) ③ 상태 `trial.focus` ④ 확정 `.json`에 `focus` · 모두 **있어도 되고 없어도 되는** 칸(없으면 가운데) → v1.2 창 · 도우미와 그대로 맞음
 
 ## 1. 연결
 | 쪽 | 주소 |
@@ -27,12 +28,13 @@
 | `refresh` (갱신 요청) | 둘 다 | `{ scope: "slots" \| "all" }` | 대장 다시 만들기(사이트 코드 다시 읽음) | `register.rebuilt` |
 | `locale` (언어 바꿈) | 미리보기 | `{ locale: "ko"\|"en"\|"ja"\|"zh-hans"\|"zh-hant" }` | (없음 · 전달만 · 대장은 대체 글 언어 표시에 씀) | `preview.locale` |
 | `variant` (수정안 바꿈) | 미리보기 · 대장 | `{ variant: null \| "<PR 브랜치>" }` | 그 브랜치 사본 실행(4302 · V12) 또는 공개본으로 | `variant.changed` |
-| `confirm` (확정) | 대장 | `{ key, license, ai, altKo?, note? }` | 요청\에 이름 규칙대로 복사(request-naming.md) · 상태 `requested` | `slot.updated` |
+| `confirm` (확정) | 대장 | `{ key, license, ai, altKo?, note? }` | 요청\에 이름 규칙대로 복사(request-naming.md) · 고른 초점도 `.json`에 · 상태 `requested` | `slot.updated` |
+| `focus` (초점 · v1.3) | 미리보기 | `{ key, x, y }`(0~1) 또는 `{ key, reset: true }`(가운데로) | 놓은 그림(`trial`)이 있는 그림 칸만 · 휴대폰 파일이 따로 있는 칸 = 놓은 원본을 **휴대폰 비율로 그 점 둘레를 다시 잘라** 사본 휴대폰 파일에 · 한 파일 칸 = 점만 저장(화면 위치) · 상태 `trial.focus` · 놓기(drop)는 가운데로 자름 | `slot.updated`(`urls.mobile?` · `focus`) |
 
 ## 3. 신호 (도우미 → 모든 창)
 | 신호 | data | 받는 창이 할 일 |
 |---|---|---|
-| `slot.updated` | `{ key, slotId, lane: "image"\|"video", state, url, urls: { pc?, mobile?, video? }, version, warnings? }` | 미리보기: `[data-slot="key"]`의 그림을 `url?v=<version>`으로 바꿔 끼움(새로 고침 없이 · V3) / 대장: 줄 썸네일 · 상태 갱신 |
+| `slot.updated` | `{ key, slotId, lane: "image"\|"video", state, url, urls: { pc?, mobile?, video? }, version, warnings?, focus?: { x, y } }` | 미리보기: `[data-slot="key"]`의 그림을 `url?v=<version>`으로 바꿔 끼움(새로 고침 없이 · V3) / 대장: 줄 썸네일 · 상태 갱신 |
 | `slot.selected` | `{ key, slotId, paths }` | 미리보기: 그 칸으로 스크롤 + 1.5초 테두리 · 화면에 없으면 그 칸 페이지로 이동(slots의 paths 첫 번째) |
 | `register.rebuilt` | `{ repoCommit, added: [key], removed: [key], moved: [{ key, fromSlotId, toSlotId }], orphanTrials: [key] }` | 대장: 다시 그림 + 바뀐 점 보고 / 미리보기: 칸 표시 다시 찾기 |
 | `preview.locale` | `{ locale }` | 대장: 대체 글 칸을 그 언어로(있으면) |

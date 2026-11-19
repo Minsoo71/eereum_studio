@@ -44,3 +44,16 @@ select:disabled { opacity: .55; }
 .screen .wait { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 13px; text-align: center; padding: 16px; }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; } }
 .chip.hidden-here { opacity: .7; text-decoration: line-through; text-decoration-color: rgba(0,0,0,.35); }
+/* 휴대폰 초점 고르기 (PC11-스튜디오-3) */
+.focusbar { display: flex; gap: 14px; align-items: flex-start; padding: 10px 16px; background: var(--white); border-bottom: 1px solid var(--border); font-size: 13px; }
+.focusbar[hidden] { display: none; }
+.fpic { position: relative; overflow: hidden; flex: none; max-width: 320px; cursor: crosshair; line-height: 0; border: 1px solid var(--border); background: var(--panel); user-select: none; }
+.fpic img { display: block; max-width: 320px; max-height: 200px; width: auto; height: auto; }
+.fbox { position: absolute; border: 2px solid var(--gold); box-shadow: 0 0 0 9999px rgba(21,26,27,.45); pointer-events: none; }
+.fbox[hidden] { display: none; }
+.fdot { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; border: 2px solid #fff; background: var(--gold); box-shadow: 0 0 0 1px var(--frame); pointer-events: none; }
+.ftext { display: flex; flex-direction: column; gap: 4px; color: var(--muted); }
+.ftext strong { color: var(--petrol); }
+.fval { font-size: 12px; color: var(--accent); }
+.fbtns button { font: inherit; font-size: 12px; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel); cursor: pointer; }
+.fbtns button:focus-visible, .fpic:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }

@@ -13,6 +13,8 @@ import { subscribe, emit, clientCount } from './events.mjs';
 import { pendingRequests, moveToReplaced } from './requests.mjs';
 import { startSite, stopSite, siteState, clearImageCache, siteLog, updateSite, startData } from './site.mjs';
 import { listVariants, createVariantRunner } from '../preview/variant.mjs';
+import sharp from 'sharp';
+import { CENTER, clampFocus, cropForMobile, hasMobileFile, mobileRatio } from '../preview/focus.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REGISTER = path.join(HERE, '../register');
@@ -51,7 +53,18 @@ const stamp = () => {
 const safeDesc = (s) => (s ?? '').replace(/\s+/g, '-').replace(/[^가-힣A-Za-z0-9-]/g, '').slice(0, 30) || '새그림';
 
 // ── 명령 ──
-async function drop({ key, target = 'both', name = '' }, body) {
+/** 휴대폰 파일 = 휴대폰 비율로 점 둘레를 자른 뒤 줄임(PC11-스튜디오-3 · 기본 가운데) */
+async function writeMobile(slot, original, focus, v) {
+  const t = slot.current.mobile;
+  const ratio = mobileRatio(slot);
+  const src = ratio ? (await cropForMobile(sharp, original, ratio, focus)).data : original;
+  const out = await forSite(src, { format: path.extname(t.url).slice(1).replace('jpeg', 'jpg'), width: Math.max(t.width ?? 0, slot.spec.minWidth) });
+  backupOnce(t.url);
+  writeFileSync(pub(t.url), out); // 사본에만
+  return { url: `${t.url}?v=${v}`, bytes: out.length };
+}
+
+async function drop({ key, target = 'both', name = '', focus = CENTER }, body) {
   const slot = slotOf(key);
   const info = await inspect(body, name);
   if (info.media === 'video' && slot.accepts === 'image') throw new StudioError('NOT_ACCEPTED', '이 칸은 이미지만 받아요.');
@@ -68,6 +81,12 @@ async function drop({ key, target = 'both', name = '' }, body) {
   if (info.media === 'image') {
     const targets = target === 'mobile' && slot.current.mobile ? [slot.current.mobile] : target === 'pc' || !slot.current.mobile ? [slot.current.pc] : [slot.current.pc, slot.current.mobile];
     for (const t of targets) {
+      if (t === slot.current.mobile) {
+        const m = await writeMobile(slot, body, focus, v);
+        urls.mobile = m.url;
+        if (m.bytes > config.limits.warnImageBytes) warnings.push(`줄인 뒤에도 ${Math.round(m.bytes / 1024)}KB예요(600KB 넘음).`);
+        continue;
+      }
       const fmt = path.extname(t.url).slice(1).replace('jpeg', 'jpg');
       const width = Math.max(t.width ?? 0, slot.spec.minWidth);
       const out = await forSite(body, { format: fmt, width });
@@ -87,10 +106,28 @@ async function drop({ key, target = 'both', name = '' }, body) {
     urls.video = `${vurl}?v=${v}`;
   }
   const lane = info.media;
-  const next = { ...state, [lane]: { state: 'trial', file: urls.pc ?? urls.video }, trial: { file: `${key}/${trialName}`, media: lane, placedAt: new Date(v).toISOString(), machine: config.machine } };
+  const next = { ...state, [lane]: { state: 'trial', file: urls.pc ?? urls.video }, trial: { file: `${key}/${trialName}`, media: lane, placedAt: new Date(v).toISOString(), machine: config.machine, ...(lane === 'image' ? { focus: clampFocus(focus) } : {}) } };
   const saved = writeState(next, state.revision);
-  emit('slot.updated', { key, slotId: slot.slotId, lane, state: 'trial', url: urls.pc ?? urls.mobile ?? urls.video, urls, version: v, warnings, info: { width: info.width, height: info.height, bytes: info.bytes, format: info.format } });
+  emit('slot.updated', { key, slotId: slot.slotId, lane, state: 'trial', url: urls.pc ?? urls.mobile ?? urls.video, urls, version: v, warnings, info: { width: info.width, height: info.height, bytes: info.bytes, format: info.format }, ...(lane === 'image' ? { focus: clampFocus(focus) } : {}) });
   return { state: saved, urls, warnings };
+}
+
+/** 초점 고르기(PC11-스튜디오-3): 미리보기에서 누른 점 → 휴대폰 파일을 다시 자름(따로 있는 칸) · 점은 칸 상태(trial.focus)에 · reset = 가운데로 */
+async function setFocus({ key, x, y, reset = false }) {
+  const slot = slotOf(key);
+  const state = readState(key);
+  if (!state?.trial || state.trial.media !== 'image') throw new StudioError('NO_TRIAL', '먼저 그림을 놓아 보세요(초점은 그림 칸만).');
+  const focus = reset ? { ...CENTER } : clampFocus({ x, y });
+  const v = Date.now();
+  const urls = {};
+  if (hasMobileFile(slot)) {
+    urls.mobile = (await writeMobile(slot, readFileSync(path.join(config.dirs.trial, state.trial.file)), focus, v)).url;
+    clearImageCache();
+  }
+  const saved = writeState({ ...state, trial: { ...state.trial, focus } }, state.revision);
+  // 휴대폰 파일만 바꿈(urls.mobile) · 한 파일 칸은 focus로 화면 위치만(bridge object-position)
+  emit('slot.updated', { key, slotId: slot.slotId, lane: 'image', state: 'trial', urls, focus, version: v });
+  return { state: saved, focus, urls };
 }
 
 function revert({ key }) {
@@ -126,7 +163,7 @@ async function update() {
     if (!register.slots.some((x) => x.key === s.key)) { lost.push(s.key); continue; }
     const file = path.join(config.dirs.trial, st.trial.file);
     if (!existsSync(file)) { lost.push(s.key); continue; }
-    await drop({ key: s.key, target: 'both', name: path.basename(file) }, readFileSync(file));
+    await drop({ key: s.key, target: 'both', name: path.basename(file), focus: st.trial.focus ?? CENTER }, readFileSync(file)); // 고른 초점도 그대로
     reapplied.push(s.key);
   }
   startSite();
@@ -151,7 +188,7 @@ function confirm({ key, license, ai = false, altKo = null, note = '', replace = 
   const base = `${slot.slotId}_${stamp()}_${safeDesc(note || slot.position.split(/[ ·(]/)[0])}`;
   mkdirSync(config.dirs.request, { recursive: true });
   copyFileSync(src, path.join(config.dirs.request, `${base}${ext}`));
-  const meta = { version: 1, key, slotId: slot.slotId, media: state.trial.media, files: { [state.trial.media === 'video' ? 'video' : 'pc']: `${base}${ext}` }, license, ai: Boolean(ai), altKo: altKo || null, note, machine: config.machine, requestedAt: new Date().toISOString() };
+  const meta = { version: 1, key, slotId: slot.slotId, media: state.trial.media, files: { [state.trial.media === 'video' ? 'video' : 'pc']: `${base}${ext}` }, license, ai: Boolean(ai), altKo: altKo || null, note, ...(state.trial.focus ? { focus: state.trial.focus } : {}), machine: config.machine, requestedAt: new Date().toISOString() };
   writeFileSync(path.join(config.dirs.request, `${base}.json`), JSON.stringify(meta, null, 2));
   const lane = state.trial.media;
   const saved = writeState({ ...state, [lane]: { ...state[lane], state: 'requested' }, request: { file: `${base}${ext}`, requestedAt: meta.requestedAt, license, ai: Boolean(ai), ...(altKo ? { altKo } : {}) } }, state.revision);
@@ -217,6 +254,7 @@ const server = http.createServer(async (req, res) => {
       const cmd = url.pathname.slice(5);
       if (cmd === 'revert') return send(res, 200, { ok: true, ...revert(data) });
       if (cmd === 'confirm') return send(res, 200, { ok: true, ...confirm(data) });
+      if (cmd === 'focus') return send(res, 200, { ok: true, ...(await setFocus(data)) });
       if (cmd === 'select') { const s = slotOf(data.key); emit('slot.selected', { key: s.key, slotId: s.slotId, paths: s.paths ?? register.pages.find((p) => p.pageId === s.pageId)?.paths ?? ['/'] }, data.from ?? 'register'); return send(res, 200, { ok: true }); }
       if (cmd === 'refresh') return send(res, 200, { ok: true, ...(await rebuild('refresh')) });
       if (cmd === 'update') return send(res, 200, { ok: true, ...(await update()) });

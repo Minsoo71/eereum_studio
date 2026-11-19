@@ -57,3 +57,8 @@ node preview/dev/fake-helper.mjs --site-port 4351 --repo D:/eereum_studio/site -
 - "동작 줄이기" 설정이면 미리보기 창의 움직임 끔
 - **숨는 칸**(PC8 B-1): 어떤 칸은 한쪽 폭에서만 보임(예: `home.story` = PC만 · `home.story.bg` = 휴대폰만) → 숨는 폭에서 고르면 bridge가 `studio:hidden`을 보내고, 미리보기는 **보이는 기기 보기로 자동으로 바꿔** 그 칸을 고름("둘 다" 보기면 안내만) · 칸 목록에서 이 폭에서 숨는 칸은 줄 그어 보임
 - **수정안 목록**(PC8 B-2): 기본 = **열린 PR만**(GitHub가 열린 PR에만 남기는 `refs/pull/N/merge`로 판단 · 쇼핑몰 지금 4개) · 맨 아래 "모든 브랜치 보기…" = `GET /api/variants?all=1` → `listVariants(dir, { all: true })`(385개)
+- **휴대폰 초점 고르기**(PC11-스튜디오-3 · 약속 v1.3): 그림을 놓고 칸을 고르면 칸 줄 아래 **초점 판**이 열림 → 놓은 그림에서 꼭 보여야 할 곳을 누름(키보드: 화살표 5%씩) · 노란 테두리 = 휴대폰에 남는 곳 · "가운데로" = 되돌리기
+  - 휴대폰 파일이 따로 있는 칸(지금 P01-01 ~ 05): 도우미가 놓은 원본을 **휴대폰 비율(휴대폰 파일 크기)로 그 점 둘레를 다시 잘라** 사본 휴대폰 파일에 넣음 → 휴대폰 틀이 바로 바뀜 · PC 그림은 그대로
+  - 한 파일을 같이 쓰는 칸: 그림은 그대로 · 화면이 자를 때 그 점을 남기게 `object-position`(배경은 `background-position`)만 바꿔 보여 줌 = 사이트 `media.ts`의 `focus`와 같은 뜻
+  - 놓을 때는 가운데로 자름(기본) · 점은 상태 `trial.focus` · 확정 `.json`의 `focus`로 M5에 넘어감 · "최신으로" 뒤 다시 끼울 때도 그 점 그대로
+  - 계산은 `preview/focus.mjs` 한 곳(미리보기 창의 노란 테두리 계산은 같은 식 · `test/preview/focus.test.mjs`가 둘을 맞춰 봄)
