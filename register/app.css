@@ -30,7 +30,7 @@ aside label{display:block;font-size:13px;margin:10px 0 4px}aside input,aside sel
 aside .note{font-size:12px;color:var(--muted)}aside .wide{width:100%;padding:10px;margin-top:10px;border-radius:4px;font:inherit;cursor:pointer}
 .muted{color:var(--muted)}
 #toast{position:fixed;inset-inline-end:20px;bottom:20px;max-width:420px;background:var(--ink);color:#fff;padding:10px 14px;border-radius:6px;font-size:13px;z-index:10}#toast.bad{background:var(--err)}
-@media (max-width:1100px){.wrap{grid-template-columns:1fr}aside{position:static;height:auto}}
+@media (max-width:860px){.wrap{grid-template-columns:1fr}aside{position:static;height:auto}}
 @media (prefers-reduced-motion:no-preference){.lane{transition:background .12s,border-color .12s}}
 .conflicts{background:#fbeae8;color:#5a1f1a;border-bottom:2px solid #993e35;padding:10px 20px;font-size:13px}.conflicts ul{margin:6px 0 0;padding-inline-start:20px}.conflicts code{font-size:12px}
 
@@ -49,7 +49,9 @@ dialog.sheet::backdrop{background:rgba(21,26,27,.6)}
 dialog.sheet h3{margin:0;font-size:17px;color:var(--petrol)}dialog.sheet p{margin:0;font-size:13px}
 dialog.sheet .sus{color:var(--err);font-weight:600}
 dialog.sheet .sheet-img{overflow:auto;border:1px solid var(--border);border-radius:4px;min-height:0;flex:1}
-dialog.sheet .sheet-img img{display:block;max-width:100%;height:auto}
+dialog.sheet .sheet-img img{display:block;max-width:100%;height:auto;cursor:zoom-in}dialog.sheet .sheet-img img.zoom{max-width:none;cursor:zoom-out}
 dialog.sheet .row{display:flex;gap:8px;justify-content:flex-end}
 dialog.sheet button{border:1px solid #616a6c;background:#fff;border-radius:4px;padding:8px 14px;font:inherit;cursor:pointer}
 .hbtn:disabled{opacity:.6;cursor:default}
+/* PC2-스튜디오-3: 화면 반쪽 창(1920 화면 = 약 950px)에서도 고른 칸 판을 옆에 둠 · 규격 칸은 고른 칸 판에 있으니 숨김 */
+@media (max-width:1279px){.wrap{grid-template-columns:minmax(0,1fr) 300px}main{padding:0 12px 60px}table th:nth-child(6),td.spec{display:none}.lane{width:132px}.th img{width:64px;height:64px}td{padding:6px}}

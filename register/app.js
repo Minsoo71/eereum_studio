@@ -140,7 +140,8 @@ function showSheet(s, sheet) {
     d.innerHTML = `<h3 id="sheet-t">${esc(s.slotId)} 빛 효과 검사판 · ${sheet.duration ? `${sheet.duration.toFixed(1)}초 · ` : ''}${sheet.interval}초마다 ${sheet.frames}장</h3>
 <p>모든 프레임에서 <b>빛 번쩍임 · 빛이 쓸고 지나감 · 빛 번짐 · 빛남</b>이 없는지 봐 주세요. 하나라도 있으면 쓰지 않아요(다시 만들기는 한 번까지).</p>
 ${sheet.suspects.length ? `<p class="sus">⚠ 자동으로 의심한 프레임 ${sheet.suspects.length}장(빨간 테두리): ${sheet.suspects.map((t) => `${Number(t).toFixed(1)}초`).join(' · ')} — 꼭 크게 봐 주세요.</p>` : '<p class="muted">자동 의심 프레임 없음 · 그래도 한 장씩 봐 주세요.</p>'}
-<div class="sheet-img"><img src="${url}" alt="${esc(s.slotId)} 프레임 검사판"></div>
+<p class="muted">그림을 누르면 원래 크기로 크게(창 안에서 스크롤) · 다시 누르면 창에 맞춤</p>
+<div class="sheet-img"><img src="${url}" alt="${esc(s.slotId)} 프레임 검사판" title="누르면 크게 · 다시 누르면 맞춤"></div>
 <div class="row"><button type="button" class="primary" data-ok>빛 효과 없음 · 확정</button><button type="button" data-no>빛 효과 있음 · 확정 안 함</button></div>`;
     document.body.append(d);
     let finished = false;
@@ -149,6 +150,7 @@ ${sheet.suspects.length ? `<p class="sus">⚠ 자동으로 의심한 프레임 $
       d.close(); d.remove(); URL.revokeObjectURL(url); done(ok);
       if (!ok) toast('확정하지 않았어요. 다른 파일을 놓거나 다시 만들어 주세요(다시 만들기는 한 번까지).');
     };
+    d.querySelector('.sheet-img img').addEventListener('click', (e) => e.currentTarget.classList.toggle('zoom')); // PC2-스튜디오-3: 크게 보기
     d.querySelector('[data-ok]').addEventListener('click', () => close(true));
     d.querySelector('[data-no]').addEventListener('click', () => close(false));
     d.addEventListener('cancel', (e) => { e.preventDefault(); close(false); });

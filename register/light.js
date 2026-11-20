@@ -60,7 +60,8 @@ const once = (el, ev, ms = 8000) => new Promise((ok, bad) => {
 
 /** 시험 파일 → 검사판 { blob, frames, duration, suspects } · kind = 'video' | 'image' */
 export async function makeSheet({ src, kind, title = '', onProgress = () => {} }) {
-  const FW = 320, COLS = 6, LABEL = 24, HEAD = 56, GAP = 6;
+  // PC2-스튜디오-3(PC5 B): 창에 맞춰 줄면 글자가 8~9px → 한 줄 4장 · 글자를 크게(반쪽 창에서도 12px 넘게) · 창에서 그림을 누르면 원래 크기
+  const FW = 320, COLS = 4, LABEL = 34, HEAD = 76, GAP = 6;
   const shots = []; let w = 16, h = 9, duration = 0, times = [0];
   if (kind === 'video') {
     const v = document.createElement('video');
@@ -92,16 +93,16 @@ export async function makeSheet({ src, kind, title = '', onProgress = () => {} }
   sheet.height = HEAD + rows * (ch + LABEL) + (rows + 1) * GAP;
   const x = sheet.getContext('2d');
   x.fillStyle = '#ffffff'; x.fillRect(0, 0, sheet.width, sheet.height);
-  x.fillStyle = '#151a1b'; x.font = 'bold 18px "Malgun Gothic", sans-serif'; x.textBaseline = 'top';
+  x.fillStyle = '#151a1b'; x.font = 'bold 24px "Malgun Gothic", sans-serif'; x.textBaseline = 'top';
   x.fillText(`빛 효과 검사판 · ${title}`, GAP + 4, 8);
-  x.font = '14px "Malgun Gothic", sans-serif'; x.fillStyle = '#616a6c';
-  x.fillText(kind === 'video' ? `영상 ${duration.toFixed(1)}초 · ${INTERVAL}초마다 ${shots.length}장 · 의심 ${suspects.length}장(빨간 테두리) · ${new Date().toLocaleString('ko-KR')}` : `그림 1장 · 의심 ${suspects.length} · ${new Date().toLocaleString('ko-KR')}`, GAP + 4, 32);
+  x.font = '18px "Malgun Gothic", sans-serif'; x.fillStyle = '#616a6c';
+  x.fillText(kind === 'video' ? `영상 ${duration.toFixed(1)}초 · ${INTERVAL}초마다 ${shots.length}장 · 의심 ${suspects.length}장(빨간 테두리) · ${new Date().toLocaleString('ko-KR')}` : `그림 1장 · 의심 ${suspects.length} · ${new Date().toLocaleString('ko-KR')}`, GAP + 4, 42);
   shots.forEach((s, i) => {
     const cx = GAP + (i % cols) * (cw + GAP), cy = HEAD + GAP + Math.floor(i / cols) * (ch + LABEL + GAP);
     x.drawImage(s.canvas, cx, cy);
     const bad = suspects.includes(i);
-    if (bad) { x.strokeStyle = '#d0021b'; x.lineWidth = 4; x.strokeRect(cx + 2, cy + 2, cw - 4, ch - 4); }
-    x.fillStyle = bad ? '#d0021b' : '#151a1b'; x.font = `${bad ? 'bold ' : ''}13px "Malgun Gothic", sans-serif`;
+    if (bad) { x.strokeStyle = '#d0021b'; x.lineWidth = 6; x.strokeRect(cx + 3, cy + 3, cw - 6, ch - 6); }
+    x.fillStyle = bad ? '#d0021b' : '#151a1b'; x.font = `${bad ? 'bold ' : ''}20px "Malgun Gothic", sans-serif`;
     x.fillText(kind === 'video' ? `${sec(times[i])}초${bad ? ' · 의심' : ''}` : bad ? '의심' : '', cx + 2, cy + ch + 5);
   });
   const blob = await new Promise((ok) => sheet.toBlob(ok, 'image/png'));
