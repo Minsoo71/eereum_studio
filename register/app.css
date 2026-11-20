@@ -41,3 +41,15 @@ aside .note{font-size:12px;color:var(--muted)}aside .wide{width:100%;padding:10p
 
 /* PC2-스튜디오-1: 1440 미만은 그림 · 놓는 칸 조금 작게(1280에서 보기 단추까지 가로 스크롤 없이) — 위 .lane · .th img보다 뒤에 둬야 먹음 */
 @media (max-width:1439px){.th img{width:80px;height:80px}.lane{width:148px}}
+
+/* 빛 효과 검사판(PC2-스튜디오-2) */
+dialog.sheet{width:min(1400px,94vw);max-height:92vh;border:0;border-radius:8px;padding:16px 20px;display:flex;flex-direction:column;gap:8px}
+dialog.sheet:not([open]){display:none}
+dialog.sheet::backdrop{background:rgba(21,26,27,.6)}
+dialog.sheet h3{margin:0;font-size:17px;color:var(--petrol)}dialog.sheet p{margin:0;font-size:13px}
+dialog.sheet .sus{color:var(--err);font-weight:600}
+dialog.sheet .sheet-img{overflow:auto;border:1px solid var(--border);border-radius:4px;min-height:0;flex:1}
+dialog.sheet .sheet-img img{display:block;max-width:100%;height:auto}
+dialog.sheet .row{display:flex;gap:8px;justify-content:flex-end}
+dialog.sheet button{border:1px solid #616a6c;background:#fff;border-radius:4px;padding:8px 14px;font:inherit;cursor:pointer}
+.hbtn:disabled{opacity:.6;cursor:default}

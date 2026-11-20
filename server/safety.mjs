@@ -59,11 +59,16 @@ export function isLocalHost(host) {
 
 /** R-1: 내장 DB 관리 포트(51213 · prisma dev가 모든 주소로 엶)를 밖에서 못 들어오게 막는 Windows 방화벽 규칙 */
 export const DB_FIREWALL_RULE = 'eereum studio - block DB 51213';
-/** 규칙이 있는지(읽기만 · 관리자 권한 필요 없음) → true · false · null(확인 못 함) */
+/**
+ * 규칙이 있는지(읽기만 · 관리자 권한 필요 없음) → true · false · null(확인 못 함)
+ * R-1b(PC6 11-20): Get-NetFirewallRule은 보통(관리자 아닌) 창에서 규칙을 0개로 보여 늘 "없음" → COM HNetCfg.FwPolicy2로
+ * (COM Name = 표시 이름 · Action 0 = 막기 · Direction 1 = 들어오기) · scripts/db-firewall.ps1 HasRule과 같은 기준
+ */
+export const DB_FIREWALL_CHECK = `if (@((New-Object -ComObject HNetCfg.FwPolicy2).Rules) | Where-Object { $_.Name -eq '${DB_FIREWALL_RULE}' -and $_.Enabled -and $_.Action -eq 0 -and $_.Direction -eq 1 }) { 'yes' } else { 'no' }`;
 export function hasDbFirewallRule(run = execFile) {
   if (process.platform !== 'win32') return Promise.resolve(null);
   return new Promise((resolve) => {
-    run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', `if (Get-NetFirewallRule -DisplayName '${DB_FIREWALL_RULE}' -ErrorAction SilentlyContinue | Where-Object { $_.Enabled -eq 'True' -and $_.Action -eq 'Block' }) { 'yes' } else { 'no' }`], { timeout: 15000, windowsHide: true }, (err, out) => {
+    run('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', DB_FIREWALL_CHECK], { timeout: 15000, windowsHide: true }, (err, out) => {
       if (err) return resolve(null);
       resolve(String(out).trim() === 'yes');
     });

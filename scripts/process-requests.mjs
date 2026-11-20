@@ -67,12 +67,14 @@ for (const r of requests) {
   const slot = reg.slots.find((s) => s.slotId === r.slotId && (!r.meta || s.key === r.meta.key)) ?? (r.meta ? reg.slots.find((s) => s.key === r.meta.key) : null);
   if (!slot) { problems.push(`${r.file}: 칸을 찾지 못함(칸 ID가 바뀌었으면 .json의 key로 찾음)`); continue; }
   if (r.meta?.license && /NC/i.test(r.meta.license)) { problems.push(`${r.file}: NC 라이선스 → 쓸 수 없음`); continue; }
+  // PC2-스튜디오-2: AI 예인데 빛 효과 검사판(0.5초 프레임)이 없으면 처리하지 않음(검사판 기능 전에 확정한 요청 포함)
+  if (r.meta?.ai && !r.meta?.lightCheck?.sheet) { problems.push(`${r.file}: AI 예인데 빛 효과 검사판이 없음 → 대장에서 다시 확정(검사판 보고 "빛 효과 없음")`); continue; }
   const cur = r.target === 'mobile' && slot.current.mobile ? slot.current.mobile : slot.current.pc;
   const newUrl = nextName(cur.url);
   const width = Math.max(cur.width ?? 0, slot.spec.minWidth);
   const src = readFileSync(path.join(reqDir, r.file));
   const out = await forSite(src, { format: path.extname(cur.url).slice(1).replace('jpeg', 'jpg'), width });
-  const row = { key: slot.key, slotId: slot.slotId, from: cur.url, to: newUrl, bytes: out.length, license: r.meta?.license ?? '(메모 확인)', ai: r.meta?.ai ?? null, altKo: r.meta?.altKo ?? null, note: r.meta?.note || r.memo };
+  const row = { key: slot.key, slotId: slot.slotId, from: cur.url, to: newUrl, bytes: out.length, license: r.meta?.license ?? '(메모 확인)', ai: r.meta?.ai ?? null, light: r.meta?.lightCheck ?? null, altKo: r.meta?.altKo ?? null, note: r.meta?.note || r.memo };
   if (!DRY) {
     writeFileSync(path.join(site, 'apps/web/public', newUrl), out);
     if (!mediaTs.includes(`'${cur.url}'`)) { problems.push(`${r.file}: media.ts에서 '${cur.url}'를 못 찾음`); continue; }
@@ -105,6 +107,11 @@ for (const r of requests) {
     const wip = path.join(config.share, '작업중');
     mkdirSync(wip, { recursive: true });
     for (const p of [path.join(reqDir, r.file), r.metaPath, r.memoPath].filter(Boolean)) renameSync(p, path.join(wip, path.basename(p)));
+    // 빛 효과 검사판(요청\_검사판\ → 작업중\_검사판\ · PR 설명에 위치)
+    if (r.meta?.lightCheck?.sheet && existsSync(path.join(reqDir, r.meta.lightCheck.sheet))) {
+      mkdirSync(path.join(wip, path.dirname(r.meta.lightCheck.sheet)), { recursive: true });
+      renameSync(path.join(reqDir, r.meta.lightCheck.sheet), path.join(wip, r.meta.lightCheck.sheet));
+    }
     // 상태
     const st = readState(slot.key);
     if (st) writeState({ ...st, image: { state: 'in-progress', file: newUrl }, trial: null, history: [{ at: new Date().toISOString(), from: cur.url, to: newUrl, backup: `${STAMP}_${path.basename(cur.url)}` }, ...(st.history ?? [])].slice(0, 20) }, st.revision);
@@ -113,7 +120,7 @@ for (const r of requests) {
 }
 
 // 5) 커밋 + PR 설명 초안
-const body = `# 그림 교체 ${STAMP} (M5 · PC9)\n\n| 칸 | 키 | 바뀐 파일 | 크기 | 출처 · 라이선스 | AI | 메모 |\n|---|---|---|---|---|---|---|\n${done.map((d) => `| ${d.slotId} | \`${d.key}\` | \`${d.from}\` → \`${d.to}\`${d.mobile ? ` · 휴대폰 \`${d.mobile.to}\`(초점 ${d.mobile.focus.x} ${d.mobile.focus.y})` : ''}${d.focus ? ` · 초점 ${d.focus.x} ${d.focus.y}` : ''} | ${Math.round(d.bytes / 1024)}KB | ${d.license} | ${d.ai === null ? '?' : d.ai ? '예' : '아니요'} | ${d.note ?? ''} |`).join('\n')}\n\n- 새 파일 이름(-vN)이라 손님 브라우저 캐시에 옛 그림이 남지 않음\n- 옛 파일은 저장소에 남겨 둠(지우기는 별도 승인) · 원본 보관 \`이전\\<키>\\\`\n${done.some((d) => d.altKo) ? '- ⚠ 대체 글 바꾸기 요청 있음 → 번역(en · ja · zh) 같이 고쳐야 해서 이 PR에 넣지 않음(따로)\n' : ''}- 확인: B(화면) · \`pnpm test:content\` · 사용자 승인 뒤 합치기\n${problems.length ? `\n## 처리 못 한 요청\n${problems.map((p) => `- ${p}`).join('\n')}\n` : ''}`;
+const body = `# 그림 교체 ${STAMP} (M5 · PC9)\n\n| 칸 | 키 | 바뀐 파일 | 크기 | 출처 · 라이선스 | AI | 메모 |\n|---|---|---|---|---|---|---|\n${done.map((d) => `| ${d.slotId} | \`${d.key}\` | \`${d.from}\` → \`${d.to}\`${d.mobile ? ` · 휴대폰 \`${d.mobile.to}\`(초점 ${d.mobile.focus.x} ${d.mobile.focus.y})` : ''}${d.focus ? ` · 초점 ${d.focus.x} ${d.focus.y}` : ''} | ${Math.round(d.bytes / 1024)}KB | ${d.license} | ${d.ai === null ? '?' : d.ai ? '예' : '아니요'} | ${d.note ?? ''} |`).join('\n')}\n\n- 새 파일 이름(-vN)이라 손님 브라우저 캐시에 옛 그림이 남지 않음\n- 옛 파일은 저장소에 남겨 둠(지우기는 별도 승인) · 원본 보관 \`이전\\<키>\\\`\n${done.some((d) => d.light) ? `- 빛 효과 검사(AI · 0.5초 프레임 · 사용자가 "빛 효과 없음" 확인): ${done.filter((d) => d.light).map((d) => `${d.slotId} 공유 \`이미지교체\\작업중\\${d.light.sheet.replace('/', '\\')}\`(${d.light.frames ?? '?'}장 · 자동 의심 ${d.light.suspects?.length ?? 0})`).join(' · ')}\n` : ''}${done.some((d) => d.altKo) ? '- ⚠ 대체 글 바꾸기 요청 있음 → 번역(en · ja · zh) 같이 고쳐야 해서 이 PR에 넣지 않음(따로)\n' : ''}- 확인: B(화면) · \`pnpm test:content\` · 사용자 승인 뒤 합치기\n${problems.length ? `\n## 처리 못 한 요청\n${problems.map((p) => `- ${p}`).join('\n')}\n` : ''}`;
 if (!DRY && done.length) {
   writeFileSync(mediaPath, mediaTs);
   git(WT, 'add', '-A', 'apps/web/public/media', 'content/media.ts');

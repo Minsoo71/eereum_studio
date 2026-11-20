@@ -12,6 +12,7 @@ import { readState, ensureState, writeState, findConflicts, watchMine } from './
 import { subscribe, emit, clientCount, setStatusBase } from './events.mjs';
 import { pendingRequests, moveToReplaced } from './requests.mjs';
 import { extFor, safeExt, isLocalHost, hasDbFirewallRule } from './safety.mjs';
+import { saveSheet, requireLightCheck, attachSheet } from './light.mjs';
 import { startSite, stopSite, siteState, clearImageCache, siteLog, updateSite, startData } from './site.mjs';
 import { listVariants, createVariantRunner } from '../preview/variant.mjs';
 import sharp from 'sharp';
@@ -185,12 +186,14 @@ async function update() {
 }
 
 /** M3 확정: 놓았던 원본 → 요청\<칸ID>_<YYYYMMDD-HHMM>_<설명>.<확장자> + 같은 이름 .json */
-function confirm({ key, license, ai = false, altKo = null, note = '', replace = false }) {
+function confirm({ key, license, ai = false, altKo = null, note = '', replace = false, lightOk = false }) {
   const slot = slotOf(key);
   const state = readState(key);
   if (!state?.trial) throw new StudioError('NO_TRIAL', '먼저 그림을 놓아 보세요.');
   if (!license) throw new StudioError('LICENSE', '출처 · 라이선스를 골라 주세요.');
   if (/NC/i.test(license)) throw new StudioError('LICENSE', 'CC BY-NC(비영리) 그림은 쓸 수 없어요.');
+  // PC2-스튜디오-2: AI 예 → 0.5초 프레임 검사판을 보고 "빛 효과 없음"을 눌러야 확정(앞 요청을 옮기기 전에 확인)
+  const light = requireLightCheck({ ai: Boolean(ai), lightOk, trialDir: config.dirs.trial, trialFile: state.trial.file });
   // 기능 ②: 같은 칸에 확정 대기 요청이 있으면 경고 → 대장에서 "앞 요청 바꾸기"(replace) / "취소"
   const pending = pendingRequests(config.dirs.request, key);
   if (pending.length && !replace) {
@@ -204,11 +207,42 @@ function confirm({ key, license, ai = false, altKo = null, note = '', replace = 
   mkdirSync(config.dirs.request, { recursive: true });
   copyFileSync(src, path.join(config.dirs.request, `${base}${ext}`));
   const meta = { version: 1, key, slotId: slot.slotId, media: state.trial.media, files: { [state.trial.media === 'video' ? 'video' : 'pc']: `${base}${ext}` }, license, ai: Boolean(ai), altKo: altKo || null, note, ...(state.trial.focus ? { focus: state.trial.focus } : {}), machine: config.machine, requestedAt: new Date().toISOString() };
+  if (light) meta.lightCheck = attachSheet(config.dirs.request, base, light, config.machine);
   writeFileSync(path.join(config.dirs.request, `${base}.json`), JSON.stringify(meta, null, 2));
   const lane = state.trial.media;
   const saved = saveState({ ...state, [lane]: { ...state[lane], state: 'requested' }, request: { file: `${base}${ext}`, requestedAt: meta.requestedAt, license, ai: Boolean(ai), ...(altKo ? { altKo } : {}) } }, state.revision);
   emit('slot.updated', { key, slotId: slot.slotId, lane, state: 'requested', file: `${base}${ext}`, version: Date.now() });
   return { file: `${base}${ext}`, state: saved, replaced };
+}
+
+/** 시험 파일 그대로(대장이 검사판을 만들 때 · 같은 출처라 그림 · 영상 프레임을 읽을 수 있음) */
+const TRIAL_TYPE = { '.mp4': 'video/mp4', '.jpg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.avif': 'image/avif', '.heic': 'image/heic', '.tif': 'image/tiff' };
+function trialFile(key) {
+  slotOf(key);
+  const st = readState(key);
+  if (!st?.trial) throw new StudioError('NO_TRIAL', '먼저 그림을 놓아 보세요.');
+  const f = path.join(config.dirs.trial, st.trial.file);
+  if (!path.resolve(f).startsWith(path.resolve(config.dirs.trial)) || !existsSync(f)) throw new StudioError('NO_TRIAL', '시험 파일을 찾지 못했어요. 다시 놓아 주세요.');
+  return { st, f };
+}
+
+// ── 데이터 화면(내장 DB) 켜기 · PC2-스튜디오-2 R-1b: 바로 가기는 DB 없이 열고 · 필요할 때 대장 단추로 ──
+let dataState = 'off'; // off | starting | ready | failed
+const FIREWALL_WARN = '내장 DB 관리 포트(51213)를 막는 방화벽 규칙이 없어요 → 같은 망의 다른 컴퓨터가 들어올 수 있어요. 데이터 화면이 필요 없으면 이 창을 닫고 DB 없이 여세요. 규칙을 다시 만들려면 PC2에게 알려 주세요(db-firewall.ps1 -Force · 관리자 허락 한 번). Windows 방화벽 허용 창이 뜨면 "허용 안 함".';
+async function startDataScreen() {
+  if (dataState === 'starting' || dataState === 'ready') return dataState;
+  dataState = 'starting';
+  emit('helper.status', { data: 'starting' });
+  if (process.platform === 'win32') {
+    // 규칙 확인은 관리자 없이(COM) · 처음 한 번만 관리자 허락 창(만든 뒤 표시 파일) — scripts/db-firewall.ps1
+    const { execFile } = await import('node:child_process');
+    await new Promise((r) => execFile('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(HERE, '../scripts/db-firewall.ps1'), '-Quiet'], { timeout: 120000, windowsHide: true }, () => r()));
+    const has = await hasDbFirewallRule();
+    if (has === false && !safetyWarnings.includes(FIREWALL_WARN)) { safetyWarnings.push(FIREWALL_WARN); emit('helper.status', { warnings: safetyWarnings }); }
+  }
+  try { await startData(); dataState = 'ready'; emit('helper.status', { data: 'ready' }); }
+  catch (e) { dataState = 'failed'; emit('helper.status', { data: 'failed', message: e.message }); }
+  return dataState;
 }
 
 // ── HTTP ──
@@ -248,7 +282,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && url.pathname === '/api/preview-config') return send(res, 200, { ok: true, siteOrigin: config.siteOrigin, variantOrigin: config.variantOrigin });
     if (req.method === 'GET' && url.pathname === '/api/variants') return send(res, 200, { ok: true, variants: await listVariants(config.site, { all: url.searchParams.get('all') === '1' }) });
     if (req.method === 'GET' && url.pathname === '/api/events') return subscribe(req, res);
-    if (req.method === 'GET' && url.pathname === '/api/status') return send(res, 200, { ok: true, site: siteState(), siteOrigin: config.siteOrigin, repoCommit: register?.source.repoCommit, machine: config.machine, clients: clientCount(), conflicts: findConflicts(), warnings: safetyWarnings });
+    if (req.method === 'GET' && url.pathname === '/api/status') return send(res, 200, { ok: true, site: siteState(), data: dataState, siteOrigin: config.siteOrigin, repoCommit: register?.source.repoCommit, machine: config.machine, clients: clientCount(), conflicts: findConflicts(), warnings: safetyWarnings });
     if (req.method === 'GET' && url.pathname === '/api/site-log') return send(res, 200, siteLog(), 'text/plain; charset=utf-8');
     if (req.method === 'GET' && url.pathname === '/api/slots') {
       return send(res, 200, { ok: true, ...register, states: Object.fromEntries(register.slots.map((s) => [s.key, readState(s.key)])), siteOrigin: config.siteOrigin });
@@ -260,6 +294,17 @@ const server = http.createServer(async (req, res) => {
       const ck = `${f}|${existsSync(f) ? readFileSync(f).length : 0}|${url.searchParams.get('v') ?? ''}`;
       if (!thumbCache.has(ck)) thumbCache.set(ck, await thumb(readFileSync(f)));
       return send(res, 200, thumbCache.get(ck), 'image/jpeg');
+    }
+    if (req.method === 'GET' && url.pathname === '/api/trial-file') {
+      const { f } = trialFile(url.searchParams.get('key'));
+      return send(res, 200, readFileSync(f), TRIAL_TYPE[path.extname(f).toLowerCase()] ?? 'application/octet-stream');
+    }
+    if (req.method === 'POST' && url.pathname === '/api/light-sheet') {
+      const { st } = trialFile(url.searchParams.get('key'));
+      const body = await readBody(req, 16 * 1024 * 1024);
+      let info = {};
+      try { info = JSON.parse(decodeURIComponent(req.headers['x-sheet-info'] ?? '{}')); } catch { /* 정보 없이도 저장 */ }
+      return send(res, 200, { ok: true, ...saveSheet(config.dirs.trial, st.trial.file, body, info) });
     }
     if (req.method === 'POST' && url.pathname === '/api/drop') {
       const body = await readBody(req, config.limits.videoBytes);
@@ -273,6 +318,7 @@ const server = http.createServer(async (req, res) => {
       if (cmd === 'confirm') return send(res, 200, { ok: true, ...confirm(data) });
       if (cmd === 'focus') return send(res, 200, { ok: true, ...(await setFocus(data)) });
       if (cmd === 'select') { const s = slotOf(data.key); emit('slot.selected', { key: s.key, slotId: s.slotId, paths: s.paths ?? register.pages.find((p) => p.pageId === s.pageId)?.paths ?? ['/'] }, data.from ?? 'register'); return send(res, 200, { ok: true }); }
+      if (cmd === 'data-start') { if (process.env.STUDIO_NO_SITE === '1') throw new StudioError('NO_SITE', '사본 없이 켠 도우미예요(시험용).'); startDataScreen(); return send(res, 200, { ok: true, data: dataState }); }
       if (cmd === 'refresh') return send(res, 200, { ok: true, ...(await rebuild('refresh')) });
       if (cmd === 'update') return send(res, 200, { ok: true, ...(await update()) });
       if (cmd === 'locale') { emit('preview.locale', { locale: data.locale }, 'preview'); return send(res, 200, { ok: true }); }
@@ -315,13 +361,9 @@ await rebuild('start');
 server.listen(config.ports.helper, '127.0.0.1', () => {
   console.log(`스튜디오 도우미: http://localhost:${config.ports.helper}/register  (칸 ${register.slots.length}개 · 사이트 ${register.source.repoCommit})`);
   if (process.env.STUDIO_NO_SITE !== '1') {
-    if (process.env.STUDIO_DB === '1') {
-      // R-1: 내장 DB 관리 포트 51213은 prisma dev가 모든 주소로 엶 → 설치 때 만든 방화벽 규칙이 없으면 대장에 경고
-      hasDbFirewallRule().then((has) => {
-        if (has === false) { safetyWarnings.push('내장 DB 관리 포트(51213)를 막는 방화벽 규칙이 없어요 → 같은 망의 다른 컴퓨터가 들어올 수 있어요. 설치를 -WithDb로 다시 하거나(관리자 허락 한 번) 데이터 화면이 필요 없으면 DB 없이 여세요. Windows 방화벽 허용 창이 뜨면 "허용 안 함".'); emit('helper.status', { warnings: safetyWarnings }); }
-      });
-    }
-    if (process.env.STUDIO_DB === '1') startData().then(() => emit('helper.status', { data: 'ready' })).catch((e) => emit('helper.status', { data: 'failed', message: e.message }));
+    // R-1: 내장 DB 관리 포트 51213은 prisma dev가 모든 주소로 엶 → 방화벽 규칙이 없으면 대장에 경고(startDataScreen)
+    // 옛 바로 가기(-WithDb → STUDIO_DB=1)는 처음부터 켬 · 새 바로 가기는 대장 "데이터 화면 켜기" 단추로
+    if (process.env.STUDIO_DB === '1') startDataScreen();
     startSite();
   }
 });

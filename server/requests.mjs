@@ -18,7 +18,7 @@ export function pendingRequests(requestDir, key) {
     let meta;
     try { meta = JSON.parse(readFileSync(path.join(requestDir, n), 'utf8')); } catch { continue; } // 반쯤 받은 파일 · 다른 파일은 건너뜀
     if (meta?.key !== key) continue;
-    out.push({ json: n, files: Object.values(meta.files ?? {}), slotId: meta.slotId, requestedAt: meta.requestedAt ?? null, machine: meta.machine ?? null, note: meta.note ?? '' });
+    out.push({ json: n, files: [...Object.values(meta.files ?? {}), ...(meta.lightCheck?.sheet ? [meta.lightCheck.sheet] : [])], slotId: meta.slotId, requestedAt: meta.requestedAt ?? null, machine: meta.machine ?? null, note: meta.note ?? '' });
   }
   return out.sort((a, b) => String(a.requestedAt).localeCompare(String(b.requestedAt)));
 }
@@ -39,7 +39,7 @@ export function moveToReplaced(requestDir, previousDir, pending) {
     for (const f of [...p.files, p.json]) {
       const src = path.join(requestDir, f);
       if (!existsSync(src)) continue; // 그사이 다른 컴퓨터가 옮겼으면 건너뜀
-      const to = freeName(dest, f);
+      const to = freeName(dest, path.basename(f)); // 검사판(_검사판/…)도 같은 곳에 이름만으로
       renameSync(src, path.join(dest, to));
       moved.push(`이전/${REPLACED_DIR}/${to}`);
     }

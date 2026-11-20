@@ -1,4 +1,5 @@
 // 대장 창 (M1 · V7 시안대로) — 도우미(같은 주소)와 이야기함 · contract/events.md v1.1
+import { makeSheet, INTERVAL } from './light.js';
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const KIND = { normal: '일반 그림', background: '배경 그림', share: '공유 미리보기' };
@@ -72,16 +73,19 @@ ${s.current.mobile ? `<label>놓을 자리</label><select id="target"><option va
 <h3 style="margin-top:16px">확정(요청 폴더로)</h3>
 <label for="lic">출처 · 라이선스</label><select id="lic"><option value="">고르세요</option><option>자체 렌더</option><option>사용자 사진</option><option>CC BY / BY-SA (출처를 메모에)</option><option disabled>CC BY-NC (쓸 수 없음)</option></select>
 <label for="ai">AI로 만든 그림인가요?</label><select id="ai"><option value="">아니요</option><option value="1">예</option></select>
+<p class="note" id="ai-note" hidden>예 → 확정을 누르면 ${INTERVAL}초마다 뽑은 프레임 검사판이 떠요. 빛 번쩍임 · 쓸림 · 번짐 · 빛남이 없을 때만 "빛 효과 없음"을 눌러 주세요.</p>
 <label for="alt">대체 글(그림 설명) · 바꿀 때만</label><input id="alt" placeholder="${esc(s.alt?.ko)}">
 <label for="memo">메모(파일 이름에도 들어감)</label><textarea id="memo" rows="2" placeholder="예: 반지가 오른쪽에 보이게"></textarea>
 <p class="note">확정하면 요청\\${esc(s.slotId)}_YYYYMMDD-HHMM_설명 으로 들어가요. 공개 사이트는 바뀌지 않아요(PC9가 확인 · 승인 뒤 반영).</p>
 <button type="button" class="wide primary" id="confirm" ${can ? '' : 'disabled'}>확정</button>
 <div id="already" class="already" role="alertdialog" aria-labelledby="already-t" hidden></div>
 ${can ? '' : '<p class="note">먼저 이 칸에 그림을 놓아 보세요.</p>'}`;
+  let lightOk = false; // 검사판에서 "빛 효과 없음"을 눌렀는지(PC2-스튜디오-2)
+  $('#ai').addEventListener('change', () => { $('#ai-note').hidden = $('#ai').value !== '1'; lightOk = false; });
   const send = async (replace) => {
     const box = $('#already');
     try {
-      const r = await api('/api/confirm', { key: s.key, license: $('#lic').value, ai: $('#ai').value === '1', altKo: $('#alt').value || null, note: $('#memo').value, replace });
+      const r = await api('/api/confirm', { key: s.key, license: $('#lic').value, ai: $('#ai').value === '1', altKo: $('#alt').value || null, note: $('#memo').value, replace, lightOk });
       box.hidden = true;
       toast(r.replaced?.length ? `앞 요청을 이전\\_바뀐요청으로 옮기고 새로 넣었어요: ${r.file}` : `요청에 넣었어요: ${r.file}`);
     } catch (e) {
@@ -96,7 +100,61 @@ ${can ? '' : '<p class="note">먼저 이 칸에 그림을 놓아 보세요.</p>'
       $('#already-no').focus();
     }
   };
-  $('#confirm')?.addEventListener('click', () => send(false));
+  $('#confirm')?.addEventListener('click', async () => {
+    if ($('#ai').value === '1') {
+      if (!$('#lic').value) { toast('출처 · 라이선스를 골라 주세요.', true); return; }
+      lightOk = await lightCheck(s, st);
+      if (!lightOk) return;
+    }
+    send(false);
+  });
+}
+
+/** AI 예 → 검사판 만들기 · 보내기 · 보여 주기 → "빛 효과 없음"이면 true */
+async function lightCheck(s, st) {
+  const b = $('#confirm'); const label = b.textContent;
+  b.disabled = true; b.textContent = '검사판 만드는 중…';
+  try {
+    const kind = st.trial.media === 'video' ? 'video' : 'image';
+    const file = await fetch(`/api/trial-file?key=${encodeURIComponent(s.key)}`);
+    if (!file.ok) throw new Error((await file.json().catch(() => null))?.error?.message ?? '시험 파일을 읽지 못했어요.');
+    const src = URL.createObjectURL(await file.blob());
+    let sheet;
+    try { sheet = await makeSheet({ src, kind, title: `${s.slotId} · ${st.trial.file.split('/').pop()}`, onProgress: (i, n) => { b.textContent = `검사판 만드는 중… ${i}/${n}`; } }); }
+    finally { URL.revokeObjectURL(src); }
+    const info = { frames: sheet.frames, interval: sheet.interval, duration: sheet.duration, suspects: sheet.suspects };
+    const up = await fetch(`/api/light-sheet?key=${encodeURIComponent(s.key)}`, { method: 'POST', headers: { 'content-type': 'image/png', 'x-sheet-info': encodeURIComponent(JSON.stringify(info)) }, body: sheet.blob });
+    const uj = await up.json().catch(() => ({ ok: false }));
+    if (!uj.ok) throw new Error(uj.error?.message ?? '검사판을 저장하지 못했어요.');
+    return await showSheet(s, sheet);
+  } catch (e) { toast(e.message, true); return false; }
+  finally { b.disabled = false; b.textContent = label; }
+}
+
+function showSheet(s, sheet) {
+  return new Promise((done) => {
+    const url = URL.createObjectURL(sheet.blob);
+    const d = document.createElement('dialog');
+    d.className = 'sheet';
+    d.setAttribute('aria-labelledby', 'sheet-t');
+    d.innerHTML = `<h3 id="sheet-t">${esc(s.slotId)} 빛 효과 검사판 · ${sheet.duration ? `${sheet.duration.toFixed(1)}초 · ` : ''}${sheet.interval}초마다 ${sheet.frames}장</h3>
+<p>모든 프레임에서 <b>빛 번쩍임 · 빛이 쓸고 지나감 · 빛 번짐 · 빛남</b>이 없는지 봐 주세요. 하나라도 있으면 쓰지 않아요(다시 만들기는 한 번까지).</p>
+${sheet.suspects.length ? `<p class="sus">⚠ 자동으로 의심한 프레임 ${sheet.suspects.length}장(빨간 테두리): ${sheet.suspects.map((t) => `${Number(t).toFixed(1)}초`).join(' · ')} — 꼭 크게 봐 주세요.</p>` : '<p class="muted">자동 의심 프레임 없음 · 그래도 한 장씩 봐 주세요.</p>'}
+<div class="sheet-img"><img src="${url}" alt="${esc(s.slotId)} 프레임 검사판"></div>
+<div class="row"><button type="button" class="primary" data-ok>빛 효과 없음 · 확정</button><button type="button" data-no>빛 효과 있음 · 확정 안 함</button></div>`;
+    document.body.append(d);
+    let finished = false;
+    const close = (ok) => {
+      if (finished) return; finished = true;
+      d.close(); d.remove(); URL.revokeObjectURL(url); done(ok);
+      if (!ok) toast('확정하지 않았어요. 다른 파일을 놓거나 다시 만들어 주세요(다시 만들기는 한 번까지).');
+    };
+    d.querySelector('[data-ok]').addEventListener('click', () => close(true));
+    d.querySelector('[data-no]').addEventListener('click', () => close(false));
+    d.addEventListener('cancel', (e) => { e.preventDefault(); close(false); });
+    d.showModal();
+    d.querySelector('[data-no]').focus(); // 기본은 "확정 안 함"(습관처럼 누르지 않게)
+  });
 }
 
 async function select(key, tell = true) {
@@ -157,6 +215,10 @@ async function status() {
   const p = $('#site-pill');
   p.textContent = s.site === 'ready' ? `쇼핑몰 사본 켜짐 · ${s.siteOrigin.replace('http://', '')}` : s.site === 'starting' ? '쇼핑몰 사본 켜는 중…' : '쇼핑몰 사본 꺼짐';
   p.className = `pill ${s.site === 'ready' ? 'ok' : s.site === 'starting' ? '' : 'bad'}`;
+  // 데이터 화면(내장 DB · 장바구니 그림 칸만 필요) — 바로 가기는 DB 없이 열고 여기서 켬(PC2-스튜디오-2 R-1b)
+  const db = $('#data');
+  db.textContent = { starting: '데이터 화면 켜는 중…', ready: '데이터 화면 켜짐', failed: '데이터 화면 다시 켜기' }[s.data] ?? '데이터 화면 켜기';
+  db.disabled = s.data === 'starting' || s.data === 'ready';
   // V5 S2: Synology 충돌 사본(자동으로 지우지 않음 · 사용자가 어느 쪽을 남길지 고름)
   let warn = $('#conflicts');
   if (!warn) { warn = document.createElement('div'); warn.id = 'conflicts'; warn.className = 'conflicts'; warn.setAttribute('role', 'alert'); $('#pages').before(warn); }
@@ -195,6 +257,14 @@ es.addEventListener('helper.error', (ev) => { if (ev.data) { const d = JSON.pars
 await load();
 await status();
 setInterval(status, 10000);
+
+$('#data').addEventListener('click', async () => {
+  try {
+    await api('/api/data-start');
+    toast('데이터 화면(내장 DB)을 켜는 중이에요(1분쯤). 처음 한 번은 Windows "변경 허용" 창이 뜰 수 있어요 → [예](방화벽 규칙).');
+    status();
+  } catch (e) { toast(e.message, true); }
+});
 
 $('#update').addEventListener('click', async () => {
   const b = $('#update'); b.disabled = true; b.textContent = '최신으로 맞추는 중…';

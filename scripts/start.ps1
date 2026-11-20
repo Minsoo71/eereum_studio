@@ -43,10 +43,8 @@ function OpenWindow($url, $size) {
 }
 
 Say 'eereum 이미지 스튜디오 여는 중…' 'Cyan'
-if ($WithDb) {
-  # 내장 DB를 켜는데 방화벽 규칙이 없으면 여기서 한 번 더 만들어 봄(관리자 허락 1번) · 없어도 스튜디오는 열림(대장에 경고)
-  & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'db-firewall.ps1') -Quiet | Out-Host
-}
+# -WithDb(옛 바로 가기)면 도우미가 데이터 화면도 켬 · 방화벽 규칙 확인 · 처음 한 번만 관리자 허락은 도우미가 db-firewall.ps1로(PC2-스튜디오-2 R-1b)
+# 새 바로 가기는 -WithDb 없이 → 대장 "데이터 화면 켜기" 단추
 if (IsUp) { Say '  도우미 이미 켜져 있음 → 창만 엶' }
 else {
   Say '  도우미 켜는 중(작은 검은 창 · 닫지 마세요)…'

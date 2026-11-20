@@ -84,7 +84,8 @@ $lnk = Join-Path ([Environment]::GetFolderPath('Desktop')) '이미지 스튜디�
 $sh = (New-Object -ComObject WScript.Shell).CreateShortcut($lnk)
 $sh.TargetPath = 'powershell.exe'
 $sh.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$start`" -Root `"$Root`" -Share `"$Share`""
-if ($WithDb) { $sh.Arguments += ' -WithDb' }  # 데이터 화면(내장 DB)도 같이 켬
+# PC2-스튜디오-2 R-1b: 바로 가기는 늘 DB 없이(데이터 화면은 장바구니 그림 1칸만 필요 → 대장 "데이터 화면 켜기" 단추로 따로)
+# 옛 바로 가기(-WithDb)는 여기서 덮어써짐
 $sh.WorkingDirectory = $app
 $sh.Save()
 Write-Host "설치 끝 · 바탕화면 '이미지 스튜디오 열기'를 누르세요." -ForegroundColor Green
