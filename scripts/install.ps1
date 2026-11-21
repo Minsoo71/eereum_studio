@@ -80,12 +80,28 @@ if ($WithDb) {
 Step 6 '공유 폴더 확인 · 바탕화면 바로 가기'
 if (-not (Test-Path $Share)) { Write-Warning "공유 폴더가 없어요: $Share (Synology Drive 동기화 · '항상 이 기기에 보관')" }
 $start = Join-Path $app 'scripts\start.ps1'
-$lnk = Join-Path ([Environment]::GetFolderPath('Desktop')) '이미지 스튜디오 열기.lnk'
-$sh = (New-Object -ComObject WScript.Shell).CreateShortcut($lnk)
-$sh.TargetPath = 'powershell.exe'
-$sh.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$start`" -Root `"$Root`" -Share `"$Share`""
-# PC2-스튜디오-2 R-1b: 바로 가기는 늘 DB 없이(데이터 화면은 장바구니 그림 1칸만 필요 → 대장 "데이터 화면 켜기" 단추로 따로)
-# 옛 바로 가기(-WithDb)는 여기서 덮어써짐
-$sh.WorkingDirectory = $app
-$sh.Save()
-Write-Host "설치 끝 · 바탕화면 '이미지 스튜디오 열기'를 누르세요." -ForegroundColor Green
+# PC2-스튜디오-4: WScript.Shell 바로 가기는 이름 · 인자를 "유니코드 아닌 프로그램용 언어"(ANSI 코드 페이지)로 바꿔 저장함
+#  → 그 설정이 한국어가 아닌 PC에서 한글이 ??? 로 깨져 "Unable to save shortcut"로 설치가 멈췄음(사용자 PC 11-21)
+#  ① 한글 경로(공유 폴더)는 바로 가기 인자에 넣지 않고 설정 파일(UTF-8)에 둠 → start.ps1이 읽음
+#  ② 바로 가기는 영문 이름으로 저장한 뒤 한글 이름으로 옮김(파일 이름 바꾸기는 유니코드 그대로)
+#  ③ 실패해도 설치는 끝 · 직접 여는 한 줄을 보여 줌
+@{ root = $Root; share = $Share } | ConvertTo-Json | Set-Content -Encoding UTF8 -Path (Join-Path $Root 'studio-settings.json')
+$openCmd = "powershell -NoProfile -ExecutionPolicy Bypass -File `"$start`""
+try {
+  $desk = [Environment]::GetFolderPath('Desktop')   # OneDrive 바탕화면이면 그 폴더
+  if (-not $desk) { throw '바탕화면 폴더를 찾지 못했어요.' }
+  if (-not (Test-Path -LiteralPath $desk)) { New-Item -ItemType Directory -Force -Path $desk | Out-Null }
+  $tmp = Join-Path $Root 'eereum-studio-open.lnk'
+  $sh = (New-Object -ComObject WScript.Shell).CreateShortcut($tmp)
+  $sh.TargetPath = 'powershell.exe'
+  $sh.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$start`""   # 영문 경로만(Root는 영문 경로 규칙)
+  # PC2-스튜디오-2 R-1b: 바로 가기는 늘 DB 없이(데이터 화면은 장바구니 그림 1칸만 필요 → 대장 "데이터 화면 켜기" 단추로 따로) · 옛 바로 가기는 덮어씀
+  $sh.WorkingDirectory = $app
+  $sh.Save()
+  Move-Item -LiteralPath $tmp -Destination (Join-Path $desk '이미지 스튜디오 열기.lnk') -Force
+  Write-Host "설치 끝 · 바탕화면 '이미지 스튜디오 열기'를 누르세요." -ForegroundColor Green
+} catch {
+  Write-Warning "바탕화면 바로 가기를 만들지 못했어요: $($_.Exception.Message)"
+  Write-Host '설치는 끝났어요. 이미지 스튜디오는 PowerShell 창에 아래 한 줄을 붙여 넣고 Enter로 열 수 있어요:' -ForegroundColor Yellow
+  Write-Host "  $openCmd" -ForegroundColor Yellow
+}

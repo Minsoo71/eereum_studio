@@ -11,6 +11,15 @@ param(
   [string]$Share = 'D:\Synology Drive VISCOM\eeruem\이미지교체',
   [switch]$WithDb
 )
+# PC2-스튜디오-4: 바로 가기 인자에는 한글을 못 넣어서(ANSI로 깨짐) 설치가 남긴 설정 파일에서 폴더를 읽음(직접 준 값이 먼저)
+$cfg = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'studio-settings.json'   # D:\eereum_studio\studio-settings.json
+if (Test-Path -LiteralPath $cfg) {
+  try {
+    $c = Get-Content -LiteralPath $cfg -Raw -Encoding UTF8 | ConvertFrom-Json
+    if (-not $PSBoundParameters.ContainsKey('Root') -and $c.root) { $Root = $c.root }
+    if (-not $PSBoundParameters.ContainsKey('Share') -and $c.share) { $Share = $c.share }
+  } catch { }
+}
 $env:NODE_OPTIONS = '--use-system-ca'
 $env:STUDIO_ROOT = $Root
 $env:STUDIO_SHARE = $Share
