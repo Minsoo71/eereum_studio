@@ -57,3 +57,7 @@ select:disabled { opacity: .55; }
 .fval { font-size: 12px; color: var(--accent); }
 .fbtns button { font: inherit; font-size: 12px; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border); background: var(--panel); cursor: pointer; }
 .fbtns button:focus-visible, .fpic:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+/* PC2-스튜디오-7 놓을 곳 표시(늘 보임 · 수정안이면 금색) */
+.placing { font-size: 12px; padding: 3px 10px; border-radius: 999px; background: rgba(255,255,255,.12); white-space: nowrap; }
+.placing.variant { background: #8a6d2b; color: #fff; font-weight: 600; }

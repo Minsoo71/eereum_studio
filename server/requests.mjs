@@ -18,7 +18,7 @@ export function pendingRequests(requestDir, key) {
     let meta;
     try { meta = JSON.parse(readFileSync(path.join(requestDir, n), 'utf8')); } catch { continue; } // 반쯤 받은 파일 · 다른 파일은 건너뜀
     if (meta?.key !== key) continue;
-    out.push({ json: n, files: [...Object.values(meta.files ?? {}), ...(meta.lightCheck?.sheet ? [meta.lightCheck.sheet] : [])], slotId: meta.slotId, requestedAt: meta.requestedAt ?? null, machine: meta.machine ?? null, note: meta.note ?? '' });
+    out.push({ json: n, files: [...Object.values(meta.files ?? {}), ...(meta.lightCheck?.sheet ? [meta.lightCheck.sheet] : [])], slotId: meta.slotId, requestedAt: meta.requestedAt ?? null, machine: meta.machine ?? null, note: meta.note ?? '', targetPR: meta.targetPR ?? null }); // targetPR = 수정안(PR)에서 확정(PC2-스튜디오-7)
   }
   return out.sort((a, b) => String(a.requestedAt).localeCompare(String(b.requestedAt)));
 }

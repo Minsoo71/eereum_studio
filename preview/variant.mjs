@@ -28,14 +28,17 @@ export async function listVariants(repoDir, { all = false } = {}) {
   const { stdout } = await git(repoDir, 'ls-remote', 'origin', 'refs/heads/*', 'refs/pull/*/head', 'refs/pull/*/merge');
   const lines = stdout.trim().split(/\r?\n/).map((l) => l.split('\t'));
   const open = new Set(lines.map(([, ref]) => ref?.match(/^refs\/pull\/(\d+)\/merge$/)?.[1]).filter(Boolean));
+  // PC2-스튜디오-7: PR의 브랜치 이름(확정 요청 targetPR · M5가 그 브랜치에 커밋) = 같은 커밋을 가리키는 브랜치가 main 말고 딱 하나일 때만
+  const heads = lines.filter(([, r]) => r?.startsWith('refs/heads/') && r !== 'refs/heads/main');
+  const branchOf = (sha) => { const m = heads.filter(([s]) => s === sha); return m.length === 1 ? m[0][1].slice(11) : null; };
   const out = [];
   for (const [sha, ref] of lines) {
     if (!ref) continue;
     const pr = ref.match(/^refs\/pull\/(\d+)\/head$/);
     if (pr) {
-      if (all || open.has(pr[1])) out.push({ kind: 'pr', id: `pr-${pr[1]}`, label: `#${pr[1]}`, open: open.has(pr[1]), fetchRef: ref, sha });
+      if (all || open.has(pr[1])) out.push({ kind: 'pr', id: `pr-${pr[1]}`, label: `#${pr[1]}`, number: Number(pr[1]), branch: branchOf(sha), open: open.has(pr[1]), fetchRef: ref, sha });
     } else if (all && ref.startsWith('refs/heads/') && ref !== 'refs/heads/main')
-      out.push({ kind: 'branch', id: ref.slice(11), label: ref.slice(11), fetchRef: ref, sha });
+      out.push({ kind: 'branch', id: ref.slice(11), label: ref.slice(11), number: null, branch: ref.slice(11), fetchRef: ref, sha });
   }
   return out.sort((a, b) => (a.kind === b.kind ? b.label.localeCompare(a.label, 'en', { numeric: true }) : a.kind === 'pr' ? -1 : 1));
 }
@@ -47,7 +50,8 @@ export function devCommand({ port, apiOrigin }) {
     throw Object.assign(new Error('API_ORIGIN이 개발 API(4000)를 가리킴'), { code: 'DEV_API' });
   return {
     args: ['next', 'dev', '--hostname', 'localhost', '-p', String(port)],
-    env: { API_ORIGIN: apiOrigin, NODE_OPTIONS: '--use-system-ca', NEXT_TELEMETRY_DISABLED: '1' },
+    // PC2-스튜디오-7: 수정안 사본에도 swc 대역(스마트 앱 컨트롤 PC · server/swc-guard.mjs · 막힘 없으면 그대로)
+    env: { API_ORIGIN: apiOrigin, NODE_OPTIONS: `--use-system-ca --import=${new URL('../server/swc-guard.mjs', import.meta.url).href}`, NEXT_TELEMETRY_DISABLED: '1' },
   };
 }
 

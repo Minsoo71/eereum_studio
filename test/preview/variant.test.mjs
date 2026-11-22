@@ -13,7 +13,7 @@ test('devCommand: API_ORIGIN 필수 · 4000(개발 API) 금지 · localhost만 �
   const c = devCommand({ port: 4312, apiOrigin: 'http://localhost:4401' });
   assert.deepEqual(c.args, ['next', 'dev', '--hostname', 'localhost', '-p', '4312']);
   assert.equal(c.env.API_ORIGIN, 'http://localhost:4401');
-  assert.equal(c.env.NODE_OPTIONS, '--use-system-ca');
+  assert.match(c.env.NODE_OPTIONS, /^--use-system-ca --import=file:\S+\/server\/swc-guard\.mjs$/); // PC2-스튜디오-7: 수정안 사본도 swc 대역
 });
 
 test('safeRef: 이상한 브랜치 이름은 막음', () => {
@@ -41,6 +41,8 @@ test('listVariants: PR refs + 브랜치(읽기만) · main 뺌 · PR 먼저', as
   assert.deepEqual(open.map((v) => v.id), ['pr-93'], '기본은 열린 PR만(PC8 B-2)');
   assert.equal(open[0].fetchRef, 'refs/pull/93/head');
   assert.equal(open[0].open, true);
+  assert.equal(open[0].number, 93);
+  assert.equal(open[0].branch, 'pc1/story', 'PR 브랜치 = 같은 커밋의 main 아닌 브랜치 하나(PC2-스튜디오-7 targetPR)');
   const all = await listVariants(work, { all: true });
   assert.deepEqual(all.map((v) => v.id), ['pr-93', 'pr-7', 'pc1/story']);
   assert.equal(all.find((v) => v.id === 'pr-7').open, false);

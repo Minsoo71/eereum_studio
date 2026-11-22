@@ -18,7 +18,9 @@ function toast(msg, bad = false) {
   t.textContent = msg; t.className = bad ? 'bad' : ''; t.hidden = false;
   clearTimeout(toast.t); toast.t = setTimeout(() => (t.hidden = true), bad ? 6000 : 3000);
 }
-const thumbUrl = (key) => `/api/thumb?key=${encodeURIComponent(key)}&v=${versions[key] ?? 0}`;
+// 놓을 곳(PC2-스튜디오-7): data.place = 'public'(공개본 사본) | 'variant'(수정안 PR 사본) — 도우미가 정함 · 아래 모든 명령에 같이 보냄
+const placeQ = () => `place=${data?.place ?? 'public'}`;
+const thumbUrl = (key) => `/api/thumb?key=${encodeURIComponent(key)}&${placeQ()}&v=${versions[`${data?.place}:${key}`] ?? 0}`;
 
 function laneHtml(slot, lane) {
   const st = data.states[slot.key] ?? {};
@@ -44,7 +46,7 @@ function rowHtml(s) {
 <td class="th"><img src="${thumbUrl(s.key)}" alt="${esc(s.alt?.ko)}" loading="lazy"></td>
 <td><div class="pos">${esc(s.position)}</div><span class="kind k-${s.kind}">${KIND[s.kind]}</span><div class="code">${esc(s.key)}</div>${warn}</td>
 <td>${laneHtml(s, 'image')}</td><td>${laneHtml(s, 'video')}</td>
-<td class="spec">${esc(s.spec.ratio)}${s.spec.displayRatio ? `<br><small>화면 ${esc(s.spec.displayRatio)}</small>` : ''}<br><small>최소 가로 ${esc(s.spec.minWidth)}px</small><br><small>모바일: ${s.spec.mobileCrop === 'separate-file' ? '파일 따로' : s.spec.mobileCrop === 'focus' ? `자르기 기준 ${esc(s.spec.focus)}` : '같은 그림'}</small></td>
+<td class="spec">${esc(s.spec.ratio)}${s.spec.displayRatio ? `<br><small>화면 ${esc(s.spec.displayRatio)}</small>` : ''}<br><small>최소 가로 ${esc(s.spec.minWidth)}px</small>${s.spec.switchWidth ? `<br><small>바뀌는 폭 ${esc(s.spec.switchWidth)}px</small>` : ''}<br><small>모바일: ${s.spec.mobileCrop === 'separate-file' ? '파일 따로' : s.spec.mobileCrop === 'focus' ? `자르기 기준 ${esc(s.spec.focus)}` : '같은 그림'}</small></td>
 <td class="act"><button type="button" data-select="${esc(s.key)}" title="미리보기 창에서 이 칸으로 이동">보기</button></td></tr>`;
 }
 
@@ -66,9 +68,11 @@ function renderSide() {
   if (!s) { $('#side').innerHTML = '<p class="muted">왼쪽 표에서 칸을 고르세요.</p>'; return; }
   const st = data.states[s.key] ?? {};
   const can = Boolean(st.trial) && st[st.trial.media]?.state !== 'requested';
-  $('#side').innerHTML = `<h3>고른 칸</h3><div class="big">${esc(s.slotId)}</div><p>${esc(s.position)}</p>
+  const v = data.variant;
+  const placeSel = v?.state === 'ready' ? `<label for="place">놓을 곳</label><select id="place"><option value="variant" ${data.place === 'variant' ? 'selected' : ''}>수정안 ${esc(v.label)}${v.branch ? ` · ${esc(v.branch)}` : ''}</option><option value="public" ${data.place === 'public' ? 'selected' : ''}>공개본(main)</option></select>` : '';
+  $('#side').innerHTML = `${placeSel}<h3>고른 칸 <small class="place-tag ${esc(data.place)}">${esc(data.placeLabel ?? '공개본')}</small></h3><div class="big">${esc(s.slotId)}</div><p>${esc(s.position)}</p>
 <img src="${thumbUrl(s.key)}" alt="">
-<dl><dt>코드 이름</dt><dd>${esc(s.key)}</dd><dt>지금 파일</dt><dd>${esc(s.current.pc.url)}</dd><dt>모바일</dt><dd>${esc(s.current.mobile?.url ?? '같은 그림')}</dd><dt>규격</dt><dd>${esc(s.spec.displayRatio ?? s.spec.ratio)} · 최소 ${esc(s.spec.minWidth)}px</dd><dt>출처</dt><dd>${esc(s.source)}</dd><dt>상태</dt><dd>${esc(st.trial ? '시험 중' : st.request ? '요청함' : '그대로')} · 고친 횟수 ${esc(st.revision ?? 0)}</dd></dl>
+<dl><dt>코드 이름</dt><dd>${esc(s.key)}</dd><dt>지금 파일</dt><dd>${esc(s.current.pc.url)}</dd><dt>모바일</dt><dd>${esc(s.current.mobile?.url ?? '같은 그림')}</dd><dt>규격</dt><dd>${esc(s.spec.displayRatio ?? s.spec.ratio)} · 최소 ${esc(s.spec.minWidth)}px${s.spec.switchWidth ? ` · 바뀌는 폭 ${esc(s.spec.switchWidth)}px` : ''}</dd><dt>출처</dt><dd>${esc(s.source)}</dd><dt>상태</dt><dd>${esc(st.trial ? '시험 중' : st.request ? '요청함' : '그대로')} · 고친 횟수 ${esc(st.revision ?? 0)}</dd></dl>
 ${s.current.mobile ? `<label>놓을 자리</label><select id="target"><option value="both">PC · 모바일 둘 다</option><option value="pc">PC 그림만</option><option value="mobile">모바일 그림만</option></select>` : ''}
 <h3 style="margin-top:16px">확정(요청 폴더로)</h3>
 <label for="lic">출처 · 라이선스</label><select id="lic"><option value="">고르세요</option><option>자체 렌더</option><option>사용자 사진</option><option>CC BY / BY-SA (출처를 메모에)</option><option disabled>CC BY-NC (쓸 수 없음)</option></select>
@@ -76,18 +80,19 @@ ${s.current.mobile ? `<label>놓을 자리</label><select id="target"><option va
 <p class="note" id="ai-note" hidden>예 → 확정을 누르면 ${INTERVAL}초마다 뽑은 프레임 검사판이 떠요. 빛 번쩍임 · 쓸림 · 번짐 · 빛남이 없을 때만 "빛 효과 없음"을 눌러 주세요.</p>
 <label for="alt">대체 글(그림 설명) · 바꿀 때만</label><input id="alt" placeholder="${esc(s.alt?.ko)}">
 <label for="memo">메모(파일 이름에도 들어감)</label><textarea id="memo" rows="2" placeholder="예: 반지가 오른쪽에 보이게"></textarea>
-<p class="note">확정하면 요청\\${esc(s.slotId)}_YYYYMMDD-HHMM_설명 으로 들어가요. 공개 사이트는 바뀌지 않아요(PC9가 확인 · 승인 뒤 반영).</p>
+<p class="note">${data.place === 'variant' ? `확정하면 요청\\${esc(s.slotId)}_YYYYMMDD-HHMM_pr${esc(v?.number ?? '')}_설명 으로 들어가요 → PC4가 <b>${esc(v?.label ?? '')} 브랜치(${esc(v?.branch ?? '?')})</b>에 커밋해요(새 PR 아님). 공개 사이트는 바뀌지 않아요.` : `확정하면 요청\\${esc(s.slotId)}_YYYYMMDD-HHMM_설명 으로 들어가요. 공개 사이트는 바뀌지 않아요(PC9가 확인 · 승인 뒤 반영).`}</p>
 <button type="button" class="wide primary" id="confirm" ${can ? '' : 'disabled'}>확정</button>
 <div id="already" class="already" role="alertdialog" aria-labelledby="already-t" hidden></div>
 ${can ? '' : '<p class="note">먼저 이 칸에 그림을 놓아 보세요.</p>'}`;
+  $('#place')?.addEventListener('change', (e) => api('/api/place', { place: e.target.value }).catch((x) => toast(x.message, true)));
   let lightOk = false; // 검사판에서 "빛 효과 없음"을 눌렀는지(PC2-스튜디오-2)
   $('#ai').addEventListener('change', () => { $('#ai-note').hidden = $('#ai').value !== '1'; lightOk = false; });
   const send = async (replace) => {
     const box = $('#already');
     try {
-      const r = await api('/api/confirm', { key: s.key, license: $('#lic').value, ai: $('#ai').value === '1', altKo: $('#alt').value || null, note: $('#memo').value, replace, lightOk });
+      const r = await api('/api/confirm', { place: data.place, key: s.key, license: $('#lic').value, ai: $('#ai').value === '1', altKo: $('#alt').value || null, note: $('#memo').value, replace, lightOk });
       box.hidden = true;
-      toast(r.replaced?.length ? `앞 요청을 이전\\_바뀐요청으로 옮기고 새로 넣었어요: ${r.file}` : `요청에 넣었어요: ${r.file}`);
+      toast(`${r.replaced?.length ? `앞 요청을 이전\\_바뀐요청으로 옮기고 새로 넣었어요: ${r.file}` : `요청에 넣었어요: ${r.file}`}${r.targetPR ? ` · ${data.placeLabel} 브랜치 ${r.targetPR.branch}에 넣을 요청` : ''}`);
     } catch (e) {
       if (e.code !== 'ALREADY_REQUESTED') { toast(e.message, true); return; }
       // 기능 ②: 같은 칸 확정 대기 → 앞 요청 바꾸기 / 취소
@@ -116,14 +121,14 @@ async function lightCheck(s, st) {
   b.disabled = true; b.textContent = '검사판 만드는 중…';
   try {
     const kind = st.trial.media === 'video' ? 'video' : 'image';
-    const file = await fetch(`/api/trial-file?key=${encodeURIComponent(s.key)}`);
+    const file = await fetch(`/api/trial-file?key=${encodeURIComponent(s.key)}&${placeQ()}`);
     if (!file.ok) throw new Error((await file.json().catch(() => null))?.error?.message ?? '시험 파일을 읽지 못했어요.');
     const src = URL.createObjectURL(await file.blob());
     let sheet;
     try { sheet = await makeSheet({ src, kind, title: `${s.slotId} · ${st.trial.file.split('/').pop()}`, onProgress: (i, n) => { b.textContent = `검사판 만드는 중… ${i}/${n}`; } }); }
     finally { URL.revokeObjectURL(src); }
     const info = { frames: sheet.frames, interval: sheet.interval, duration: sheet.duration, suspects: sheet.suspects };
-    const up = await fetch(`/api/light-sheet?key=${encodeURIComponent(s.key)}`, { method: 'POST', headers: { 'content-type': 'image/png', 'x-sheet-info': encodeURIComponent(JSON.stringify(info)) }, body: sheet.blob });
+    const up = await fetch(`/api/light-sheet?key=${encodeURIComponent(s.key)}&${placeQ()}`, { method: 'POST', headers: { 'content-type': 'image/png', 'x-sheet-info': encodeURIComponent(JSON.stringify(info)) }, body: sheet.blob });
     const uj = await up.json().catch(() => ({ ok: false }));
     if (!uj.ok) throw new Error(uj.error?.message ?? '검사판을 저장하지 못했어요.');
     return await showSheet(s, sheet);
@@ -173,17 +178,17 @@ async function dropFile(key, lane, file) {
   const zone = document.querySelector(`tr[data-key="${CSS.escape(key)}"] [data-drop="${lane}"]`);
   zone?.classList.add('busy');
   try {
-    const r = await fetch(`/api/drop?key=${encodeURIComponent(key)}&target=${target}`, { method: 'POST', headers: { 'x-file-name': encodeURIComponent(file.name), 'content-type': 'application/octet-stream' }, body: file });
+    const r = await fetch(`/api/drop?key=${encodeURIComponent(key)}&target=${target}&${placeQ()}`, { method: 'POST', headers: { 'x-file-name': encodeURIComponent(file.name), 'content-type': 'application/octet-stream' }, body: file });
     const j = await r.json();
     if (!j.ok) throw new Error(j.error?.message ?? '놓지 못했어요.');
-    toast(`${s.slotId} 사본에 바꿔 끼웠어요${j.warnings?.length ? ' · ' + j.warnings.join(' ') : ''}`, Boolean(j.warnings?.length));
+    toast(`${s.slotId} ${data.placeLabel ?? '공개본'} 사본에 바꿔 끼웠어요${j.warnings?.length ? ' · ' + j.warnings.join(' ') : ''}`, Boolean(j.warnings?.length));
   } catch (e) { toast(e.message, true); zone?.classList.remove('busy'); }
 }
 
 // 이벤트 위임
 document.addEventListener('click', (e) => {
   const rv = e.target.closest('[data-revert]');
-  if (rv) { e.stopPropagation(); api('/api/revert', { key: rv.dataset.revert }).then(() => toast('원래 그림으로 되돌렸어요.')).catch((x) => toast(x.message, true)); return; }
+  if (rv) { e.stopPropagation(); api('/api/revert', { key: rv.dataset.revert, place: data.place }).then(() => toast('원래 그림으로 되돌렸어요.')).catch((x) => toast(x.message, true)); return; }
   const sb = e.target.closest('[data-select]');
   const tr = e.target.closest('tr[data-key]');
   if (sb || tr) select((sb ?? tr).dataset.select ?? tr.dataset.key);
@@ -206,8 +211,11 @@ document.addEventListener('drop', (e) => {
 $('#refresh').addEventListener('click', () => api('/api/refresh').then((r) => toast(`다시 읽었어요 · 새 칸 ${r.added.length} · 없어진 칸 ${r.removed.length} · 옮긴 칸 ${r.moved.length}`)).catch((x) => toast(x.message, true)));
 
 async function load() {
-  const r = await fetch('/api/slots'); data = await r.json();
-  $('#commit-pill').textContent = `사이트 ${data.source.repoCommit} · ${data.source.branch || 'main'}`;
+  const r = await fetch('/api/slots'); data = await r.json(); // 도우미의 지금 놓을 곳 기준
+  $('#commit-pill').textContent = data.place === 'variant' ? `수정안 ${data.variant?.label ?? ''} · ${data.source.repoCommit} · ${data.variant?.branch ?? ''}` : `사이트 ${data.source.repoCommit} · ${data.source.branch || 'main'}`;
+  const pp = $('#place-pill');
+  pp.textContent = `놓을 곳: ${data.placeLabel ?? '공개본'}`;
+  pp.className = `pill${data.place === 'variant' ? ' rev' : ''}`;
   $('#open-site').href = data.siteOrigin;
   render();
 }
@@ -238,8 +246,9 @@ async function status() {
 const es = new EventSource('/api/events');
 es.addEventListener('slot.updated', async (ev) => {
   const d = JSON.parse(ev.data);
-  versions[d.key] = d.version;
-  const st = await (await fetch('/api/slots')).json();
+  versions[`${d.place ?? 'public'}:${d.key}`] = d.version;
+  if ((d.place ?? 'public') !== data.place) return; // 다른 쪽(공개본 · 수정안) 소식은 표를 안 바꿈
+  const st = await (await fetch(`/api/slots?${placeQ()}`)).json();
   data.states = st.states;
   rerenderRow(d.key);
 });
@@ -247,10 +256,13 @@ es.addEventListener('slot.updated', async (ev) => {
 es.addEventListener('slot.overwritten', async (ev) => {
   const d = JSON.parse(ev.data);
   toast(`${d.slotId}: 다른 컴퓨터(${d.by})가 방금 이 칸을 바꿨어요. 지금 상태는 그쪽 것이에요 — 내 그림을 쓰려면 다시 놓아 주세요(놓은 원본은 _시험 폴더에 그대로).`, true);
-  const st = await (await fetch('/api/slots')).json();
+  if (data.place !== 'public') return; // 덮어씀 = 공유 _상태(공개본)만
+  const st = await (await fetch('/api/slots?place=public')).json();
   data.states = st.states;
   rerenderRow(d.key);
 });
+// 놓을 곳이 바뀜(수정안이 켜짐 · 꺼짐 · 고름) → 그쪽 칸 목록 · 상태로 다시 그림
+es.addEventListener('place.changed', () => load().then(() => toast(`놓을 곳: ${data.placeLabel}`)));
 es.addEventListener('slot.selected', (ev) => { const d = JSON.parse(ev.data); if (d.from !== 'register' && d.key !== selected) select(d.key, false); });
 es.addEventListener('register.rebuilt', (ev) => { const d = JSON.parse(ev.data); if (d.reason !== 'start') load(); });
 es.addEventListener('helper.status', () => status());

@@ -1,5 +1,6 @@
 // M5 요청 처리(PC9 · 필요할 때마다 · 하루 최대 한 묶음) — 요청\ → 사이트 브랜치(로컬 커밋까지) · push · PR · 합치기는 하지 않음(승인 필요)
-// 쓰는 법(이 저장소에서): node scripts/process-requests.mjs --repo D:/dev/eereum_ring [--dry-run]  (--repo = 쇼핑몰 저장소 · PR 브랜치를 만들 곳)
+// 쓰는 법(이 저장소에서): node scripts/process-requests.mjs --repo D:/dev/eereum_ring [--dry-run] [--target-pr <번호>]  (--repo = 쇼핑몰 저장소 · PR 브랜치를 만들 곳)
+//   --target-pr = 수정안(그 PR)에서 확정한 요청(.json targetPR)만 → 그 PR 브랜치에 로컬 커밋(새 PR 아님 · PC2-스튜디오-7) · 없으면 공개본 요청만
 // 하는 일:
 //  1) 요청\의 <칸ID>_<시각>_<설명>.<확장자> (+ 같은 이름 .json · 없으면 .txt 메모) 모으기
 //  2) 사이트 저장소에 작업 폴더(git worktree) D:\eereum_studio\m5 · 브랜치 pc9/images-<YYYYMMDD-HHMM> (origin/main에서)
@@ -16,15 +17,19 @@ import { readState, writeState } from '../server/state.mjs';
 import sharp from 'sharp';
 import { clampFocus, cropForMobile, hasMobileFile, mobileRatio } from '../preview/focus.mjs';
 import { setFocusInMedia } from '../server/media-edit.mjs';
+import { splitByTarget } from '../server/request-groups.mjs';
 
 const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
 const DRY = args.includes('--dry-run');
 const REPO = opt('--repo', 'D:/dev/eereum_ring');
-const WT = opt('--worktree', path.join(config.root, 'm5'));
+// --target-pr N(PC2-스튜디오-7) = 수정안(PR #N)에서 확정한 요청만 · 그 PR 브랜치에 커밋(새 PR 아님) · 작업 폴더 m5-pr
+const TARGET_PR = opt('--target-pr', null) != null ? Number(opt('--target-pr')) : null;
+if (TARGET_PR != null && !Number.isInteger(TARGET_PR)) { console.error('--target-pr 뒤에 PR 번호를 적어 주세요(예: --target-pr 101).'); process.exit(1); }
+const WT = opt('--worktree', path.join(config.root, TARGET_PR != null ? 'm5-pr' : 'm5'));
 const kst = new Date(Date.now() + 9 * 3600e3).toISOString();
 const STAMP = `${kst.slice(0, 10).replace(/-/g, '')}-${kst.slice(11, 16).replace(':', '')}`;
-const BRANCH = `pc9/images-${STAMP}`;
+let BRANCH = `pc9/images-${STAMP}`;
 const git = (cwd, ...a) => execFileSync('git', a, { cwd, encoding: 'utf8' }).trim();
 const IMG = /\.(jpe?g|png|webp|heic|heif)$/i;
 
@@ -32,7 +37,7 @@ const IMG = /\.(jpe?g|png|webp|heic|heif)$/i;
 const reqDir = config.dirs.request;
 const files = existsSync(reqDir) ? readdirSync(reqDir).filter((f) => /^P\d{2}-\d{2}_/.test(f) && IMG.test(f)) : [];
 if (!files.length) { console.log('요청이 없어요.'); process.exit(0); }
-const requests = files.map((f) => {
+const allRequests = files.map((f) => {
   const base = f.replace(/\.[^.]+$/, '');
   const metaPath = path.join(reqDir, `${base}.json`);
   const memoPath = path.join(reqDir, `${base}.txt`);
@@ -40,12 +45,20 @@ const requests = files.map((f) => {
   const target = /-모바일$/.test(base) ? 'mobile' : 'pc';
   return { file: f, base, slotId: f.slice(0, 6), meta, metaPath: existsSync(metaPath) ? metaPath : null, memo: existsSync(memoPath) ? readFileSync(memoPath, 'utf8').trim() : '', memoPath: existsSync(memoPath) ? memoPath : null, target };
 });
+// 공개본 요청 / 수정안(PR) 요청 나누기
+const groups = splitByTarget(allRequests, TARGET_PR);
+for (const w of groups.waiting) console.log(`수정안 요청 ${w.files.length}개는 남겨 둠(PR #${w.number} · ${w.branch ?? '브랜치 ?'}) → node scripts/process-requests.mjs --target-pr ${w.number}`);
+if (groups.problems.length) { for (const p of groups.problems) console.error(p); process.exit(1); }
+const requests = groups.chosen;
+if (!requests.length) { console.log(TARGET_PR != null ? `PR #${TARGET_PR} 요청이 없어요.` : '공개본 요청이 없어요.'); process.exit(0); }
+if (TARGET_PR != null) BRANCH = groups.branch;
 
-// 2) 작업 폴더(worktree)
+// 2) 작업 폴더(worktree) — 공개본 = origin/main에서 새 브랜치 · 수정안 = 그 PR 브랜치 그대로(origin에서 받아 이어서)
 if (!DRY) {
-  git(REPO, 'fetch', '--quiet', 'origin', 'main');
-  if (!existsSync(WT)) git(REPO, 'worktree', 'add', '--quiet', '-b', BRANCH, WT, 'origin/main');
-  else { git(WT, 'checkout', '--quiet', '-B', BRANCH, 'origin/main'); }
+  const base = TARGET_PR != null ? BRANCH : 'main';
+  git(REPO, 'fetch', '--quiet', 'origin', base);
+  if (!existsSync(WT)) git(REPO, 'worktree', 'add', '--quiet', '-B', BRANCH, WT, `origin/${base}`);
+  else { git(WT, 'checkout', '--quiet', '-B', BRANCH, `origin/${base}`); }
 }
 const site = DRY ? config.site : WT;
 const reg = await buildSlots(site);
@@ -113,19 +126,19 @@ for (const r of requests) {
       renameSync(path.join(reqDir, r.meta.lightCheck.sheet), path.join(wip, r.meta.lightCheck.sheet));
     }
     // 상태
-    const st = readState(slot.key);
+    const st = TARGET_PR != null ? null : readState(slot.key); // 수정안 요청은 공유 _상태(공개본)를 안 건드림
     if (st) writeState({ ...st, image: { state: 'in-progress', file: newUrl }, trial: null, history: [{ at: new Date().toISOString(), from: cur.url, to: newUrl, backup: `${STAMP}_${path.basename(cur.url)}` }, ...(st.history ?? [])].slice(0, 20) }, st.revision);
   }
   done.push(row);
 }
 
 // 5) 커밋 + PR 설명 초안
-const body = `# 그림 교체 ${STAMP} (M5 · PC9)\n\n| 칸 | 키 | 바뀐 파일 | 크기 | 출처 · 라이선스 | AI | 메모 |\n|---|---|---|---|---|---|---|\n${done.map((d) => `| ${d.slotId} | \`${d.key}\` | \`${d.from}\` → \`${d.to}\`${d.mobile ? ` · 휴대폰 \`${d.mobile.to}\`(초점 ${d.mobile.focus.x} ${d.mobile.focus.y})` : ''}${d.focus ? ` · 초점 ${d.focus.x} ${d.focus.y}` : ''} | ${Math.round(d.bytes / 1024)}KB | ${d.license} | ${d.ai === null ? '?' : d.ai ? '예' : '아니요'} | ${d.note ?? ''} |`).join('\n')}\n\n- 새 파일 이름(-vN)이라 손님 브라우저 캐시에 옛 그림이 남지 않음\n- 옛 파일은 저장소에 남겨 둠(지우기는 별도 승인) · 원본 보관 \`이전\\<키>\\\`\n${done.some((d) => d.light) ? `- 빛 효과 검사(AI · 0.5초 프레임 · 사용자가 "빛 효과 없음" 확인): ${done.filter((d) => d.light).map((d) => `${d.slotId} 공유 \`이미지교체\\작업중\\${d.light.sheet.replace('/', '\\')}\`(${d.light.frames ?? '?'}장 · 자동 의심 ${d.light.suspects?.length ?? 0})`).join(' · ')}\n` : ''}${done.some((d) => d.altKo) ? '- ⚠ 대체 글 바꾸기 요청 있음 → 번역(en · ja · zh) 같이 고쳐야 해서 이 PR에 넣지 않음(따로)\n' : ''}- 확인: B(화면) · \`pnpm test:content\` · 사용자 승인 뒤 합치기\n${problems.length ? `\n## 처리 못 한 요청\n${problems.map((p) => `- ${p}`).join('\n')}\n` : ''}`;
+const body = `# 그림 교체 ${STAMP} (M5 · PC9${TARGET_PR != null ? ` · PR #${TARGET_PR} 브랜치 ${BRANCH}에 이어서 · 새 PR 아님` : ''})\n\n| 칸 | 키 | 바뀐 파일 | 크기 | 출처 · 라이선스 | AI | 메모 |\n|---|---|---|---|---|---|---|\n${done.map((d) => `| ${d.slotId} | \`${d.key}\` | \`${d.from}\` → \`${d.to}\`${d.mobile ? ` · 휴대폰 \`${d.mobile.to}\`(초점 ${d.mobile.focus.x} ${d.mobile.focus.y})` : ''}${d.focus ? ` · 초점 ${d.focus.x} ${d.focus.y}` : ''} | ${Math.round(d.bytes / 1024)}KB | ${d.license} | ${d.ai === null ? '?' : d.ai ? '예' : '아니요'} | ${d.note ?? ''} |`).join('\n')}\n\n- 새 파일 이름(-vN)이라 손님 브라우저 캐시에 옛 그림이 남지 않음\n- 옛 파일은 저장소에 남겨 둠(지우기는 별도 승인) · 원본 보관 \`이전\\<키>\\\`\n${done.some((d) => d.light) ? `- 빛 효과 검사(AI · 0.5초 프레임 · 사용자가 "빛 효과 없음" 확인): ${done.filter((d) => d.light).map((d) => `${d.slotId} 공유 \`이미지교체\\작업중\\${d.light.sheet.replace('/', '\\')}\`(${d.light.frames ?? '?'}장 · 자동 의심 ${d.light.suspects?.length ?? 0})`).join(' · ')}\n` : ''}${done.some((d) => d.altKo) ? '- ⚠ 대체 글 바꾸기 요청 있음 → 번역(en · ja · zh) 같이 고쳐야 해서 이 PR에 넣지 않음(따로)\n' : ''}- 확인: B(화면) · \`pnpm test:content\` · 사용자 승인 뒤 합치기\n${problems.length ? `\n## 처리 못 한 요청\n${problems.map((p) => `- ${p}`).join('\n')}\n` : ''}`;
 if (!DRY && done.length) {
   writeFileSync(mediaPath, mediaTs);
   git(WT, 'add', '-A', 'apps/web/public/media', 'content/media.ts');
-  git(WT, 'commit', '--quiet', '-m', `chore(media): 그림 교체 ${STAMP} · ${done.map((d) => d.slotId).join(' ')} (M5 · 스튜디오 요청)`, '-m', 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>');
-  writeFileSync(path.join(config.share, '작업중', `M5_${STAMP}.md`), body);
+  git(WT, 'commit', '--quiet', '-m', `chore(media): 그림 교체 ${STAMP} · ${done.map((d) => d.slotId).join(' ')} (M5 · 스튜디오 요청${TARGET_PR != null ? ` · 수정안 #${TARGET_PR}` : ''})`, '-m', 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>');
+  writeFileSync(path.join(config.share, '작업중', `M5_${STAMP}${TARGET_PR != null ? `_pr${TARGET_PR}` : ''}.md`), body);
 }
 console.log(DRY ? '(시험 · 바꾼 것 없음)' : `브랜치 ${BRANCH} · 작업 폴더 ${WT} · 커밋 ${done.length ? git(WT, 'log', '-1', '--format=%h') : '-'}`);
 console.log(body);

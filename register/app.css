@@ -55,3 +55,8 @@ dialog.sheet button{border:1px solid #616a6c;background:#fff;border-radius:4px;p
 .hbtn:disabled{opacity:.6;cursor:default}
 /* PC2-스튜디오-3: 화면 반쪽 창(1920 화면 = 약 950px)에서도 고른 칸 판을 옆에 둠 · 규격 칸은 고른 칸 판에 있으니 숨김 */
 @media (max-width:1279px){.wrap{grid-template-columns:minmax(0,1fr) 300px}main{padding:0 12px 60px}table th:nth-child(6),td.spec{display:none}.lane{width:132px}.th img{width:64px;height:64px}td{padding:6px}}
+
+/* PC2-스튜디오-7 놓을 곳: 수정안이면 금색(공개본과 헷갈리지 않게) */
+.pill.rev{background:#8a6d2b;color:#fff;font-weight:600}
+.place-tag{font-size:12px;font-weight:400;padding:1px 8px;border-radius:999px;background:#e6eef0;color:#2b6370}
+.place-tag.variant{background:#f3e7c8;color:#6b4f12;font-weight:600}

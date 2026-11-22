@@ -1,10 +1,11 @@
-# 신호 약속 · 대장 창 ↔ 도우미 ↔ 미리보기 창 (약속 v1.5 · PC9 · 2026-11-18 · v1.3 PC11 · v1.4 · v1.5 PC9 11-19)
+# 신호 약속 · 대장 창 ↔ 도우미 ↔ 미리보기 창 (약속 v1.6 · PC9 · 2026-11-18 · v1.3 PC11 · v1.4 · v1.5 PC9 11-19 · v1.6 PC2 11-22)
 
 > v1.1 바뀐 점(11-18 · 1단계): ① 놓기 = 한 번(`POST /api/drop?key=&target=` · 몸통 = 파일 그대로 · 머리 `x-file-name`) — v1의 upload + drop 두 번을 합침 ② `slot.updated`에 `urls: { pc, mobile, video }` · `warnings` 추가 ③ `slot.selected`에 `paths` 추가(그 칸이 보이는 주소) ④ 명령 주소 = `POST /api/<명령>` 그대로
 > v1.2 바뀐 점(11-18 18:00 통합): 오류 신호 이름 `error` → **`helper.error`**(EventSource는 이름이 `error`인 신호를 연결 끊김과 구별하지 못함 → 미리보기 창에 "연결 끊김"이 잘못 뜸) · 미리보기 창(PC11)은 `helper.error`로 받아 주세요
 > v1.3 바뀐 점(11-19 · PC11-스튜디오-3 · PC9 확인 11-19 17:20): 휴대폰 자르기 **초점** — ① 명령 `focus` 추가 ② `slot.updated`에 `focus?: { x, y }`(0~1 · 그림 왼쪽 위 = 0,0) ③ 상태 `trial.focus` ④ 확정 `.json`에 `focus` · 모두 **있어도 되고 없어도 되는** 칸(없으면 가운데) → v1.2 창 · 도우미와 그대로 맞음
 > v1.4 바뀐 점(11-19 · PC9 · G1 판): ① `confirm`에 `replace?: true` — 같은 칸에 확정 대기 요청(요청\ 안 그 칸 .json)이 있으면 오류 `ALREADY_REQUESTED` + `error.detail.pending[]` → 대장 "앞 요청 바꾸기"(replace) / "취소" · 바꾸면 앞 요청은 `이전\_바뀐요청\`(지우지 않음) ② 신호 `slot.overwritten` `{ key, slotId, by, at, revision, mine }` — 내가 쓴 상태 파일을 5 · 15초 뒤 다시 읽어 다른 컴퓨터가 덮었으면(V5 S2 · 1초 안 동시 쓰기) · 미리보기는 무시해도 됨 ③ 오류 응답에 `detail?` · 모두 있어도 되고 없어도 되는 칸 → v1.3 창과 그대로 맞음
 > v1.5 바뀐 점(11-19 · PC9 · G1 판 2 · PC6 고칠 점): ① 도우미는 `Host`가 localhost가 아니면 403 `HOST`(R-c · 창은 늘 localhost로 열어 그대로) ② `_시험` · 확정 요청 파일 확장자 = 내용에서 알아낸 형식(R-b · 놓은 이름 확장자 X) ③ GPS 경고 = EXIF GPS 칸(0x8825) 있을 때만(R-a) ④ `GET /api/status`에 `warnings?: string[]`(R-1 방화벽 규칙 없음 등 · 대장 위 빨간 띠) · 미리보기 창은 바꿀 것 없음
+> v1.6 바뀐 점(11-22 · PC2-스튜디오-7 · 수정안 위에 그림 놓기): ① **놓을 곳** `place: "public" | "variant"` — `drop` · `trial-file` · `light-sheet` · `thumb` · `slots`는 주소에 `&place=` · `revert` · `confirm` · `focus`는 몸통에 `place` · 없으면 도우미의 지금 놓을 곳 ② 명령 `place` · 신호 **`place.changed`** · 수정안 사본이 켜지면 도우미가 놓을 곳 = 수정안으로 바꿈 · 꺼지면 공개본 ③ `slot.updated`에 `place` · 수정안이면 `variant: "<수정안 id>"`(미리보기는 그 창에만) ④ `GET /api/status`에 `place` · `label` · `variant: { id, label, number, branch, state }` ⑤ 수정안 확정 `.json`에 `targetPR: { id, number, branch, sha }` · 이름에 `_pr<번호>` → M5 `--target-pr <번호>`가 그 PR 브랜치에 커밋(새 PR 아님) ⑥ 수정안 칸 목록 = 그 PR 코드(media.ts)로 · 상태는 이 컴퓨터 `variant-state\`(공유 `_상태`와 따로) · 시험 원본 `_시험\_pr\<수정안>\<키>\` · `spec.switchWidth`(휴대폰 → PC 그림이 바뀌는 폭) · 모두 있어도 되고 없어도 되는 칸 → v1.5 창과 그대로 맞음
 
 ## 1. 연결
 | 쪽 | 주소 |
@@ -30,7 +31,8 @@
 | `refresh` (갱신 요청) | 둘 다 | `{ scope: "slots" \| "all" }` | 대장 다시 만들기(사이트 코드 다시 읽음) | `register.rebuilt` |
 | `locale` (언어 바꿈) | 미리보기 | `{ locale: "ko"\|"en"\|"ja"\|"zh-hans"\|"zh-hant" }` | (없음 · 전달만 · 대장은 대체 글 언어 표시에 씀) | `preview.locale` |
 | `variant` (수정안 바꿈) | 미리보기 · 대장 | `{ variant: null \| "<PR 브랜치>" }` | 그 브랜치 사본 실행(4302 · V12) 또는 공개본으로 | `variant.changed` |
-| `confirm` (확정) | 대장 | `{ key, license, ai, altKo?, note?, replace? }` | 요청\에 이름 규칙대로 복사(request-naming.md) · 고른 초점도 `.json`에 · 상태 `requested` | `slot.updated` |
+| `place` (놓을 곳 · v1.6) | 대장 | `{ place: "public"\|"variant" }` | 놓을 곳을 바꿈(수정안은 켜져 있을 때만 · 아니면 `VARIANT_OFF`) | `place.changed` |
+| `confirm` (확정) | 대장 | `{ key, license, ai, altKo?, note?, replace?, place? }` | 요청\에 이름 규칙대로 복사(request-naming.md) · 고른 초점도 `.json`에 · 상태 `requested` | `slot.updated` |
 | `focus` (초점 · v1.3) | 미리보기 | `{ key, x, y }`(0~1) 또는 `{ key, reset: true }`(가운데로) | 놓은 그림(`trial`)이 있는 그림 칸만 · 휴대폰 파일이 따로 있는 칸 = 놓은 원본을 **휴대폰 비율로 그 점 둘레를 다시 잘라** 사본 휴대폰 파일에 · 한 파일 칸 = 점만 저장(화면 위치) · 상태 `trial.focus` · 놓기(drop)는 가운데로 자름 | `slot.updated`(`urls.mobile?` · `focus`) |
 
 ## 3. 신호 (도우미 → 모든 창)
@@ -42,6 +44,7 @@
 | `slot.overwritten` (v1.4) | `{ key, slotId, by, at, revision, mine: { at, trial } }` | 대장: "다른 컴퓨터(by)가 방금 이 칸을 바꿨어요" + 줄 다시 그림 / 미리보기: 무시(그 뒤 그림은 slot.updated로 옴) |
 | `preview.locale` | `{ locale }` | 대장: 대체 글 칸을 그 언어로(있으면) |
 | `variant.changed` | `{ variant, port, state: "starting"\|"ready"\|"failed", message? }` | 미리보기: 나란히 보기 열기/닫기 |
+| `place.changed` | (v1.6) `{ place: "public"\|"variant", label, variant: { id, label, number, branch, state } \| null }` | 대장: 그쪽 칸 목록 · 상태로 다시 그림 · 머리 "놓을 곳" / 미리보기: 위쪽 "수정안 #101에 놓는 중" 표시 · 초점은 그쪽 그림으로 |
 | `helper.status` | `{ site: "starting"\|"ready"\|"failed", repoCommit, message? }` | 두 창 위쪽 띠에 표시 |
 | `helper.error` | `{ code, message, key? }` | 창에 짧게 표시 · **v1.2: 이름이 `error`면 브라우저 EventSource의 연결 끊김(onerror)과 섞여 '연결 끊김'으로 보임 → `helper.error`로 바꿈** |
 
@@ -55,6 +58,8 @@
 | `SITE_NOT_READY` | 쇼핑몰 사본이 아직 안 켜짐 |
 | `BUSY` | 같은 칸을 다른 컴퓨터가 바꾸는 중(상태 파일 revision 충돌) |
 | `HOST` (v1.5) | 머리 `Host`가 localhost · 127.0.0.1 · [::1]이 아님 → 403(모든 주소) |
+| `VARIANT_OFF` (v1.6) | 놓을 곳이 수정안인데 수정안 사본이 안 켜짐 |
+| `NO_BRANCH` (v1.6) | 수정안의 브랜치 이름을 몰라(다른 저장소 PR 등) 그 PR에 넣을 수 없음 |
 
 ## 5. 규칙
 - 순서: 같은 칸에 대한 명령은 도우미가 한 줄로 차례대로 처리

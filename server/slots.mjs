@@ -63,16 +63,20 @@ const SOURCE = (k) =>
 export function readMediaTs(siteDir) {
   const src = readFileSync(path.join(siteDir, 'content/media.ts'), 'utf8');
   const slots = {};
+  let last = 0;
   for (const m of src.matchAll(/'([a-z0-9.]+)':\s*\{([^}]*)\}/g)) {
     const val = (k) => (m[2].match(new RegExp(`${k}:\\s*'([^']+)'`)) || [])[1] ?? null;
-    slots[m[1]] = { pc: val('pc'), mobile: val('mobile'), poster: val('poster'), alt: val('alt'), focus: val('focus') };
+    // PC2-스튜디오-7: 휴대폰 → PC 그림이 바뀌는 폭(칸 위 · 안 설명의 "768px부터") · 없으면 null(기본 <Media> = 1280)
+    const sw = (src.slice(last, m.index) + m[2]).match(/(\d{3,4})px부터/);
+    slots[m[1]] = { pc: val('pc'), mobile: val('mobile'), poster: val('poster'), alt: val('alt'), focus: val('focus'), switchAt: sw ? Number(sw[1]) : null };
+    last = m.index + m[0].length;
   }
   return slots;
 }
 
 const gcd = (a, b) => (b ? gcd(b, a % b) : a);
 export function ratioOf(w, h) {
-  const known = [[1, 1], [5, 4], [4, 5], [4, 3], [3, 4], [3, 2], [2, 3], [16, 9], [9, 16], [1.91, 1]];
+  const known = [[1, 1], [5, 4], [4, 5], [4, 3], [3, 4], [3, 2], [2, 3], [16, 9], [9, 16], [1.91, 1], [2, 1], [9, 19.5]];
   const k = known.find(([a, b]) => Math.abs(w / h - a / b) < 0.02);
   if (k) return `${k[0]}:${k[1]}`;
   const g = gcd(w, h);
@@ -127,6 +131,9 @@ export async function buildSlots(siteDir) {
       focus: s.focus ?? 'center',
     };
     if (DISPLAY[key]) spec.displayRatio = DISPLAY[key];
+    // PC2-스튜디오-7: 휴대폰 · PC 파일이 따로 있으면 그 파일 크기(= 그 판의 코드)로 화면 비율 · 바뀌는 폭(수정안 PR이면 그 PR 기준)
+    if (mobile?.width && pc.width) spec.displayRatio = `모바일 ${ratioOf(mobile.width, mobile.height)} · PC ${ratioOf(pc.width, pc.height)}`;
+    if (mobile) spec.switchWidth = s.switchAt ?? 1280;
     const slot = {
       slotId: `${page.pageId}-${String(counter[page.pageId]).padStart(2, '0')}`,
       key, pageId: page.pageId, position: POS.get(key) ?? `(새 칸) ${key}`,

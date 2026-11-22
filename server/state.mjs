@@ -11,6 +11,15 @@ export function readState(key) {
   try { return JSON.parse(readFileSync(file(key), 'utf8')); } catch { return null; }
 }
 
+/** 칸 목록 기준 새 상태(파일에 쓰지 않음 · 수정안 상태도 같은 모양 · PC2-스튜디오-7) */
+export function freshState(slot) {
+  const isVideo = /\.(mp4|webm)$/i.test(slot.current.pc.url);
+  const lane = (st) => (st === 'live' ? { state: st, file: slot.current.pc.url } : { state: st });
+  const image = slot.accepts === 'video' ? 'not-accepted' : isVideo ? 'empty' : 'live';
+  const video = slot.accepts === 'image' ? 'not-accepted' : isVideo ? 'live' : 'empty';
+  return { version: 1, key: slot.key, slotId: slot.slotId, image: lane(image), video: lane(video), trial: null, request: null, history: [], revision: 0 };
+}
+
 /** 없으면 칸 목록 기준으로 새로 만듦 */
 export function ensureState(slot) {
   const cur = readState(slot.key);
@@ -18,12 +27,7 @@ export function ensureState(slot) {
     if (cur.slotId !== slot.slotId) writeState({ ...cur, slotId: slot.slotId }, cur.revision);
     return readState(slot.key);
   }
-  const isVideo = /\.(mp4|webm)$/i.test(slot.current.pc.url);
-  const lane = (st) => (st === 'live' ? { state: st, file: slot.current.pc.url } : { state: st });
-  const image = slot.accepts === 'video' ? 'not-accepted' : isVideo ? 'empty' : 'live';
-  const video = slot.accepts === 'image' ? 'not-accepted' : isVideo ? 'live' : 'empty';
-  const fresh = { version: 1, key: slot.key, slotId: slot.slotId, image: lane(image), video: lane(video), trial: null, request: null, history: [], revision: 0 };
-  writeState(fresh, null);
+  writeState(freshState(slot), null);
   return readState(slot.key);
 }
 
