@@ -15,13 +15,15 @@ let web = null;
 let proxy = null;
 let state = 'stopped';
 const tail = [];
+let swcStub = false; // swc 대역을 켰는지(PC2-스튜디오-6 · /api/status swcStub)
 
 export function siteEnv() {
   return {
     ...process.env,
     API_ORIGIN: `http://localhost:${config.ports.api}`, // ① 고정(4000 금지)
     NEXT_TELEMETRY_DISABLED: '1',
-    NODE_OPTIONS: [process.env.NODE_OPTIONS, '--use-system-ca'].filter(Boolean).join(' '),
+    // ⑤ swc 대역(PC2-스튜디오-6): 스마트 앱 컨트롤이 @swc/core 네이티브를 막는 PC에서도 사본이 켜지게(막힘 없으면 그대로)
+    NODE_OPTIONS: [process.env.NODE_OPTIONS, '--use-system-ca', `--import=${new URL('./swc-guard.mjs', import.meta.url).href}`].filter(Boolean).join(' '),
     // .env 값은 넘기지 않음(사본 폴더에는 .env가 없음 · 비밀값 0)
     DATABASE_URL: '', SESSION_SECRET: '', PORTONE_API_SECRET: '',
   };
@@ -41,6 +43,7 @@ export function startSite() {
   const onLine = (b) => {
     const s = b.toString();
     tail.push(s); if (tail.length > 50) tail.shift();
+    if (s.includes('[studio] swc-guard:')) swcStub = true;
     if (state === 'starting' && /Ready in|ready started|Local:/i.test(s)) {
       state = 'proxy';
       // 중계 4301 → next dev 4351 (사본 HTML에 미리보기 연결 스크립트 끼움 · PC11 preview/proxy.mjs)
@@ -107,6 +110,7 @@ export async function startData() {
 }
 
 export const siteState = () => state;
+export const siteSwcStub = () => swcStub;
 export const siteLog = () => tail.join('').slice(-4000);
 
 /** "최신으로"(M4): 사본을 원격(GitHub · 읽기만)의 같은 가지 최신으로 · 빨리 감기만(사본에서 바꾼 그림 파일은 먼저 원래대로 되돌려 둬야 함)

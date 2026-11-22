@@ -13,7 +13,7 @@ import { subscribe, emit, clientCount, setStatusBase } from './events.mjs';
 import { pendingRequests, moveToReplaced } from './requests.mjs';
 import { extFor, safeExt, isLocalHost, hasDbFirewallRule } from './safety.mjs';
 import { saveSheet, requireLightCheck, attachSheet } from './light.mjs';
-import { startSite, stopSite, siteState, clearImageCache, siteLog, updateSite, startData } from './site.mjs';
+import { startSite, stopSite, siteState, siteSwcStub, clearImageCache, siteLog, updateSite, startData } from './site.mjs';
 import { listVariants, createVariantRunner } from '../preview/variant.mjs';
 import sharp from 'sharp';
 import { CENTER, clampFocus, cropForMobile, hasMobileFile, mobileRatio } from '../preview/focus.mjs';
@@ -282,7 +282,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && url.pathname === '/api/preview-config') return send(res, 200, { ok: true, siteOrigin: config.siteOrigin, variantOrigin: config.variantOrigin });
     if (req.method === 'GET' && url.pathname === '/api/variants') return send(res, 200, { ok: true, variants: await listVariants(config.site, { all: url.searchParams.get('all') === '1' }) });
     if (req.method === 'GET' && url.pathname === '/api/events') return subscribe(req, res);
-    if (req.method === 'GET' && url.pathname === '/api/status') return send(res, 200, { ok: true, site: siteState(), data: dataState, siteOrigin: config.siteOrigin, repoCommit: register?.source.repoCommit, machine: config.machine, clients: clientCount(), conflicts: findConflicts(), warnings: safetyWarnings });
+    if (req.method === 'GET' && url.pathname === '/api/status') return send(res, 200, { ok: true, site: siteState(), swcStub: siteSwcStub(), data: dataState, siteOrigin: config.siteOrigin, repoCommit: register?.source.repoCommit, machine: config.machine, clients: clientCount(), conflicts: findConflicts(), warnings: safetyWarnings });
     if (req.method === 'GET' && url.pathname === '/api/site-log') return send(res, 200, siteLog(), 'text/plain; charset=utf-8');
     if (req.method === 'GET' && url.pathname === '/api/slots') {
       return send(res, 200, { ok: true, ...register, states: Object.fromEntries(register.slots.map((s) => [s.key, readState(s.key)])), siteOrigin: config.siteOrigin });
