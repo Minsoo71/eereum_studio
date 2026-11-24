@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { config } from './config.mjs';
 import { buildSlots, diffSlots } from './slots.mjs';
 import { inspect, forSite, thumb, StudioError } from './images.mjs';
+import { resolveTarget, autoMobileNote } from './drop-target.mjs';
 import { readState, ensureState, writeState, findConflicts, watchMine, freshState } from './state.mjs';
 import { createVariantStore } from './variant-store.mjs';
 import { subscribe, emit, clientCount, setStatusBase } from './events.mjs';
@@ -149,11 +150,12 @@ async function placeFiles(ctx, slot, body, info, target, focus, v) {
   return { urls, warnings };
 }
 
-async function drop(ctx, { key, target = 'both', name = '', focus = CENTER }, body) {
+async function drop(ctx, { key, target: wanted = 'both', name = '', focus = CENTER }, body) {
   const slot = slotOf(ctx, key);
   const info = await inspect(body, name);
   if (info.media === 'video' && slot.accepts === 'image') throw new StudioError('NOT_ACCEPTED', '이 칸은 이미지만 받아요.');
   if (info.media === 'image' && slot.accepts === 'video') throw new StudioError('NOT_ACCEPTED', '이 칸은 영상만 받아요.');
+  const { target, auto } = resolveTarget(wanted, info, slot); // PC2-스튜디오-9: 세로 영상 = 휴대폰만(auto)
   const state = ctx.init(slot);
   const v = Date.now();
   // 1) 놓은 원본을 공유 폴더 _시험\<키>\(수정안이면 _시험\_pr\<수정안>\<키>\)에 보관(확정 때 이 원본을 요청으로 보냄)
@@ -165,10 +167,12 @@ async function drop(ctx, { key, target = 'both', name = '', focus = CENTER }, bo
   writeFileSync(path.join(trialDir, trialName), body);
   const { urls, warnings } = await placeFiles(ctx, slot, body, info, target, focus, v);
   const lane = info.media;
+  if (lane === 'video' && auto && target === 'mobile') warnings.push(autoMobileNote(info));
   const next = { ...state, [lane]: { state: 'trial', file: urls.pc ?? urls.video }, trial: { file: `${trialRel}/${trialName}`, media: lane, target, placedAt: new Date(v).toISOString(), machine: config.machine, ...(lane === 'image' ? { focus: clampFocus(focus) } : {}) } };
   const saved = ctx.save(next, state.revision);
-  emit('slot.updated', { key, slotId: slot.slotId, lane, state: 'trial', url: urls.pc ?? urls.mobile ?? urls.video, urls, version: v, warnings, info: { width: info.width, height: info.height, bytes: info.bytes, format: info.format }, ...(lane === 'image' ? { focus: clampFocus(focus) } : {}), ...placeTag(ctx) });
-  return { state: saved, urls, warnings, place: ctx.name };
+  // 영상은 target(휴대폰만 · PC만 · 둘 다)도 보냄 → 미리보기가 그 폭에서만 보임(약속 v1.7)
+  emit('slot.updated', { key, slotId: slot.slotId, lane, state: 'trial', url: urls.pc ?? urls.mobile ?? urls.video, urls, version: v, warnings, info: { width: info.width, height: info.height, bytes: info.bytes, format: info.format }, ...(lane === 'image' ? { focus: clampFocus(focus) } : { target }), ...placeTag(ctx) });
+  return { state: saved, urls, warnings, target, place: ctx.name };
 }
 
 /** 다시 끼우기(수정안을 다시 켰을 때): 남겨 둔 시험 원본을 사본 파일에만 다시 씀 · 상태(시험 · 요청함)는 그대로 */
@@ -180,7 +184,7 @@ async function reapply(ctx, slot, st) {
   const v = Date.now();
   const focus = st.trial.focus ?? CENTER;
   const { urls } = await placeFiles(ctx, slot, body, info, st.trial.target ?? 'both', focus, v);
-  emit('slot.updated', { key: slot.key, slotId: slot.slotId, lane: info.media, state: st[info.media]?.state ?? 'trial', url: urls.pc ?? urls.mobile ?? urls.video, urls, version: v, ...(info.media === 'image' ? { focus } : {}), ...placeTag(ctx) });
+  emit('slot.updated', { key: slot.key, slotId: slot.slotId, lane: info.media, state: st[info.media]?.state ?? 'trial', url: urls.pc ?? urls.mobile ?? urls.video, urls, version: v, ...(info.media === 'image' ? { focus } : { target: st.trial.target ?? 'both' }), ...placeTag(ctx) });
   return true;
 }
 
@@ -268,7 +272,7 @@ function confirm(ctx, { key, license, ai = false, altKo = null, note = '', repla
   const base = `${slot.slotId}_${stamp()}${prTag}_${safeDesc(note || slot.position.split(/[ ·(]/)[0])}`;
   mkdirSync(config.dirs.request, { recursive: true });
   copyFileSync(src, path.join(config.dirs.request, `${base}${ext}`));
-  const meta = { version: 1, key, slotId: slot.slotId, media: state.trial.media, files: { [state.trial.media === 'video' ? 'video' : 'pc']: `${base}${ext}` }, license, ai: Boolean(ai), altKo: altKo || null, note, ...(state.trial.focus ? { focus: state.trial.focus } : {}), ...(pr ? { targetPR: pr } : {}), machine: config.machine, requestedAt: new Date().toISOString() };
+  const meta = { version: 1, key, slotId: slot.slotId, media: state.trial.media, files: { [state.trial.media === 'video' ? 'video' : 'pc']: `${base}${ext}` }, ...(state.trial.media === 'video' ? { target: state.trial.target ?? 'both' } : {}), license, ai: Boolean(ai), altKo: altKo || null, note, ...(state.trial.focus ? { focus: state.trial.focus } : {}), ...(pr ? { targetPR: pr } : {}), machine: config.machine, requestedAt: new Date().toISOString() };
   if (light) meta.lightCheck = attachSheet(config.dirs.request, base, light, config.machine);
   writeFileSync(path.join(config.dirs.request, `${base}.json`), JSON.stringify(meta, null, 2));
   const lane = state.trial.media;

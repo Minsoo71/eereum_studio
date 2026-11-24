@@ -73,7 +73,7 @@ function renderSide() {
   $('#side').innerHTML = `${placeSel}<h3>고른 칸 <small class="place-tag ${esc(data.place)}">${esc(data.placeLabel ?? '공개본')}</small></h3><div class="big">${esc(s.slotId)}</div><p>${esc(s.position)}</p>
 <img src="${thumbUrl(s.key)}" alt="">
 <dl><dt>코드 이름</dt><dd>${esc(s.key)}</dd><dt>지금 파일</dt><dd>${esc(s.current.pc.url)}</dd><dt>모바일</dt><dd>${esc(s.current.mobile?.url ?? '같은 그림')}</dd><dt>규격</dt><dd>${esc(s.spec.displayRatio ?? s.spec.ratio)} · 최소 ${esc(s.spec.minWidth)}px${s.spec.switchWidth ? ` · 바뀌는 폭 ${esc(s.spec.switchWidth)}px` : ''}</dd><dt>출처</dt><dd>${esc(s.source)}</dd><dt>상태</dt><dd>${esc(st.trial ? '시험 중' : st.request ? '요청함' : '그대로')} · 고친 횟수 ${esc(st.revision ?? 0)}</dd></dl>
-${s.current.mobile ? `<label>놓을 자리</label><select id="target"><option value="both">PC · 모바일 둘 다</option><option value="pc">PC 그림만</option><option value="mobile">모바일 그림만</option></select>` : ''}
+${s.current.mobile ? `<label>놓을 자리</label><select id="target"><option value="auto">알아서(세로 영상 = 휴대폰만 · 그 밖 = 둘 다)</option><option value="both">PC · 모바일 둘 다</option><option value="pc">PC만(그림 · 영상)</option><option value="mobile">휴대폰만(그림 · 영상)</option></select>` : ''}
 <h3 style="margin-top:16px">확정(요청 폴더로)</h3>
 <label for="lic">출처 · 라이선스</label><select id="lic"><option value="">고르세요</option><option>자체 렌더</option><option>사용자 사진</option><option>CC BY / BY-SA (출처를 메모에)</option><option disabled>CC BY-NC (쓸 수 없음)</option></select>
 <label for="ai">AI로 만든 그림인가요?</label><select id="ai"><option value="">아니요</option><option value="1">예</option></select>
@@ -174,14 +174,16 @@ async function select(key, tell = true) {
 
 async function dropFile(key, lane, file) {
   const s = data.slots.find((x) => x.key === key);
-  const target = selected === key ? ($('#target')?.value ?? 'both') : 'both';
+  // PC2-스튜디오-9: 고르지 않았으면 "알아서"(세로 영상 = 휴대폰만) · 고른 칸이면 그 칸의 놓을 자리
+  const target = selected === key ? ($('#target')?.value ?? 'auto') : 'auto';
   const zone = document.querySelector(`tr[data-key="${CSS.escape(key)}"] [data-drop="${lane}"]`);
   zone?.classList.add('busy');
   try {
     const r = await fetch(`/api/drop?key=${encodeURIComponent(key)}&target=${target}&${placeQ()}`, { method: 'POST', headers: { 'x-file-name': encodeURIComponent(file.name), 'content-type': 'application/octet-stream' }, body: file });
     const j = await r.json();
     if (!j.ok) throw new Error(j.error?.message ?? '놓지 못했어요.');
-    toast(`${s.slotId} ${data.placeLabel ?? '공개본'} 사본에 바꿔 끼웠어요${j.warnings?.length ? ' · ' + j.warnings.join(' ') : ''}`, Boolean(j.warnings?.length));
+    const where = (file.type?.startsWith('video') || /\.mp4$/i.test(file.name)) && j.target && j.target !== 'both' ? ` · ${j.target === 'mobile' ? '휴대폰' : 'PC'} 화면에만` : '';
+    toast(`${s.slotId} ${data.placeLabel ?? '공개본'} 사본에 바꿔 끼웠어요${where}${j.warnings?.length ? ' · ' + j.warnings.join(' ') : ''}`, Boolean(j.warnings?.length));
   } catch (e) { toast(e.message, true); zone?.classList.remove('busy'); }
 }
 

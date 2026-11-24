@@ -14,7 +14,7 @@ export async function inspect(buf, fileName = '') {
     if (buf.length > config.limits.videoBytes) throw new StudioError('FILE_TOO_BIG', '영상은 200MB까지 놓을 수 있어요.');
     // mp4 머리('ftyp')로 확인
     if (buf.subarray(4, 8).toString('latin1') !== 'ftyp') throw new StudioError('FILE_TYPE', 'mp4 영상이 아니에요.');
-    return { media: 'video', format: 'mp4', bytes: buf.length };
+    return { media: 'video', format: 'mp4', bytes: buf.length, ...mp4Size(buf) };
   }
   if (buf.length > config.limits.imageBytes) throw new StudioError('FILE_TOO_BIG', '그림은 40MB까지 놓을 수 있어요.');
   let meta;
@@ -26,6 +26,41 @@ export async function inspect(buf, fileName = '') {
     width: rotated ? meta.height : meta.width, height: rotated ? meta.width : meta.height,
     space: meta.space, hasExif: Boolean(meta.exif), hasGps: hasGpsTag(meta.exif), // R-a: 글자 "GPS"가 아니라 EXIF GPS 칸(0x8825)
   };
+}
+
+/**
+ * mp4 화면 크기(PC2-스튜디오-9 · 세로 영상 = 휴대폰 칸 고르기): 영상 트랙 'tkhd' 상자의 폭 · 높이(16.16 고정소수)
+ * · 90° 돌림 행렬이면 폭 · 높이를 바꿈 · 못 찾으면 {}(크기 모름 = 예전처럼)
+ */
+export function mp4Size(buf) {
+  const CONTAINERS = new Set(['moov', 'trak', 'mdia', 'edts']);
+  let best = null;
+  const walk = (start, end, depth) => {
+    let p = start;
+    while (p + 8 <= end && depth < 8) {
+      let size = buf.readUInt32BE(p);
+      const type = buf.toString('latin1', p + 4, p + 8);
+      let head = 8;
+      if (size === 1) { if (p + 16 > end) break; size = Number(buf.readBigUInt64BE(p + 8)); head = 16; }
+      else if (size === 0) size = end - p;
+      if (size < head || p + size > end) break;
+      if (CONTAINERS.has(type)) walk(p + head, p + size, depth + 1);
+      else if (type === 'tkhd') {
+        const body = p + head;
+        const matrix = body + (buf[body] === 1 ? 52 : 40);
+        const wh = matrix + 36;
+        if (wh + 8 <= p + size) {
+          const w = buf.readUInt32BE(wh) / 65536;
+          const h = buf.readUInt32BE(wh + 4) / 65536;
+          const b = buf.readInt32BE(matrix + 4); // 행렬 b ≠ 0 = 90° · 270° 돌림
+          if (w > 0 && h > 0 && (!best || w * h > best.width * best.height)) best = b !== 0 ? { width: Math.round(h), height: Math.round(w) } : { width: Math.round(w), height: Math.round(h) };
+        }
+      }
+      p += size;
+    }
+  };
+  try { walk(0, buf.length, 0); } catch { return {}; }
+  return best ?? {};
 }
 
 /** 사본에 끼울 그림 한 장(지금 파일과 같은 형식 · 같은 이름) */

@@ -22,6 +22,10 @@ const st = {
   vtrials: new Map(), // 같은 모양 — 수정안(PC2-스튜디오-7)
   place: 'public', // 대장에서 그림을 놓는 곳(도우미가 알려 줌 · place.changed)
   placeLabel: '공개본',
+  // PC2-스튜디오-9: 놓은 영상(칸 키 → slot.updated 신호) — 영상은 사본 파일이 아니라 화면에 끼우는 것이라
+  // 창을 다시 그리면(비교 켜기 · 페이지 · 언어) 사라짐 → 창이 준비될 때마다(studio:ready) 다시 보냄
+  videos: { public: new Map(), variant: new Map() },
+  applied: new Map(), // `${key}|${version}` → { role, frames, count, shown } (끼울 곳 못 찾음 · 그 폭에서 안 보임 알림)
 };
 const trialsOf = (place) => (place === 'variant' ? st.vtrials : st.trials);
 
@@ -176,6 +180,64 @@ function renderPages() {
   sel.value = st.pageId ?? st.pages[0]?.pageId ?? '';
 }
 
+/* ---------- 놓은 영상 다시 끼우기 · 알림 (PC2-스튜디오-9) ---------- */
+const TARGET_NAME = { mobile: '휴대폰', pc: 'PC' };
+
+/** 영상 신호 기억(시험 · 요청함) · 되돌림이나 그림을 놓으면 지움 */
+function rememberVideo(role, d) {
+  if (!d.key) return;
+  const map = st.videos[role];
+  if (d.lane === 'video' && d.urls?.video && (d.state === 'trial' || d.state === 'requested' || !d.state)) map.set(d.key, d);
+  else if (d.lane === 'video' && d.state === 'requested' && map.has(d.key)) map.set(d.key, { ...map.get(d.key), state: 'requested' });
+  else if (d.lane === 'video' || (d.lane === 'image' && d.state === 'trial')) map.delete(d.key);
+}
+
+/** 처음 열 때: 상태 파일의 영상 시험(trial · requested)을 기억 → 창이 준비되면 끼움 */
+function seedVideos(role, slots, states) {
+  for (const slot of slots ?? []) {
+    const s = states?.[slot.key];
+    const file = s?.video?.file;
+    if (!file || !['trial', 'requested'].includes(s.video.state) || s.trial?.media !== 'video') continue;
+    st.videos[role].set(slot.key, { key: slot.key, lane: 'video', state: s.video.state, urls: { video: file }, version: Date.parse(s.trial.placedAt) || 1, target: s.trial.target ?? 'both' });
+  }
+}
+
+/** 창이 (다시) 준비됨 → 그 창 쪽(공개본 · 수정안)에 놓아 둔 영상을 다시 보냄(같은 version이면 bridge가 무시) */
+function replayVideos(frame, slots) {
+  const keys = new Set((slots ?? []).map((s) => s.key));
+  for (const d of st.videos[frame.role].values()) if (keys.has(d.key)) postTo(frame, { type: 'studio:update', ...d, quiet: true });
+}
+
+/** 같은 신호에 대한 창들의 결과를 모아 한 번만 알림: 끼울 곳 0 = 빨간 알림 · 영상이 그 폭에서 안 보임 = 안내 */
+function noteApplied(frame, m) {
+  if (m.quiet) return;
+  const id = `${m.key}|${m.version}`;
+  const a = st.applied.get(id) ?? { role: frame.role, frames: 0, count: 0, shown: 0, lane: m.lane, target: m.target };
+  a.frames++;
+  a.count += m.count || 0;
+  a.shown += m.shown || 0;
+  st.applied.set(id, a);
+  clearTimeout(a.timer);
+  a.timer = setTimeout(() => {
+    st.applied.delete(id);
+    if (a.count === 0) toast(`“${m.key}” — 이 화면에서 ${a.lane === 'video' ? '영상' : '그림'}을 끼울 곳을 못 찾았어요(서버에는 들어감 · 다른 페이지나 기기 보기에서 확인하거나 PC2에게 알려 주세요)`, true);
+    else if (a.lane === 'video' && a.shown === 0 && a.target && a.target !== 'both') toast(`“${m.key}” 영상은 ${TARGET_NAME[a.target]} 화면에만 보여요 · 위 보기에서 "${TARGET_NAME[a.target]}"을 골라 확인하세요`);
+  }, 700);
+}
+
+/** 수정안에 놓았는데 수정안 창이 없음(공개본만 보기) → 수정안이 켜져 있으면 비교 보기로 열고, 아니면 알림 */
+function ensureFrameFor(role, d) {
+  if (st.frames.some((f) => f.role === role)) return;
+  const what = d.lane === 'video' ? '영상' : '그림';
+  const label = st.variant?.id ? `수정안 ${st.variant.id.replace(/^pr-/, '#')}` : '수정안';
+  if (role === 'variant' && st.variant?.state === 'ready') {
+    $('#compare [data-c="on"]')?.click(); // 비교 켜기 → 창이 준비되면 replayVideos가 다시 끼움(그림은 사본 파일이라 바로 보임)
+    toast(`${label}에 놓은 ${what}이라 "공개본 | 수정안" 보기로 열었어요 · 오른쪽 수정안 창에서 보세요`);
+  } else if (role === 'variant') {
+    toast(`${label}에 ${what}을 놓았지만 수정안 창이 꺼져 있어요 · 위 "공개본 | 수정안"을 누르고 수정안을 골라 주세요`, true);
+  }
+}
+
 /* ---------- 창 안 대화 (bridge.js) ---------- */
 function postTo(frame, msg) {
   frame.el.contentWindow?.postMessage(msg, originOf(frame.role));
@@ -192,6 +254,7 @@ window.addEventListener('message', (e) => {
     st.present.set(frame.el, new Set(m.slots.map((s) => s.key)));
     st.hidden.set(frame.el, new Set(m.slots.filter((s) => s.visible === 0).map((s) => s.key)));
     renderChips();
+    replayVideos(frame, m.slots);
     if (st.pendingSelect) {
       const k = st.pendingSelect;
       if (st.present.get(frame.el).has(k)) {
@@ -205,6 +268,7 @@ window.addEventListener('message', (e) => {
     toast(`“${m.key}” — 이 화면에 없는 칸`, true);
   } else if (m.type === 'studio:applied') {
     status(`“${m.key}” 새 ${m.lane === 'video' ? '영상' : '그림'} 반영 · ${m.count}곳`);
+    noteApplied(frame, m);
   } else if (m.type === 'studio:scroll' && st.compare) {
     for (const f of st.frames) if (f.el !== frame.el && f.device === frame.device) postTo(f, { type: 'studio:scrollTo', ratio: m.ratio });
   }
@@ -272,6 +336,7 @@ async function loadPlace() {
     if (st.place === 'variant') {
       const j = await api('slots?place=variant');
       st.vslots = j.slots || [];
+      seedVideos('variant', st.vslots, j.states); // PC2-스튜디오-9
       for (const slot of st.vslots) {
         const t = trialFromState(slot, j.states?.[slot.key]);
         if (t) st.vtrials.set(slot.key, t);
@@ -371,7 +436,9 @@ const handlers = {
   'slot.updated': (d) => {
     // variant(수정안)에서 놓은 그림은 수정안 창에만 · 아니면 공개본 창에만 (약속: 확정은 그 PR의 요청으로)
     const target = d.variant ? 'variant' : 'public';
+    rememberVideo(target, d); // PC2-스튜디오-9: 창을 다시 그려도 영상이 남게
     for (const f of st.frames) if (f.role === target) postTo(f, { type: 'studio:update', ...d });
+    if (d.state === 'trial' || (d.lane === 'video' && d.urls?.video)) ensureFrameFor(target, d); // 보낼 창이 없으면 열거나 알림(조용히 버리지 않음)
     // 초점 고르기: 놓은 그림(시험)이 있는 칸 기억 · 확정 · 되돌리기면 지움 (공개본 · 수정안 따로 · PC2-스튜디오-7)
     if (d.key) {
       const map = trialsOf(target);
@@ -395,6 +462,7 @@ const handlers = {
     loadSlots().then(() => toast(`칸 목록 다시 만듦 · 새 칸 ${d.added?.length ?? 0} · 없어진 칸 ${d.removed?.length ?? 0}`));
   },
   'variant.changed': (d) => {
+    if (st.variant?.id && (d.variant ?? null) !== st.variant.id) st.videos.variant.clear(); // 다른 수정안으로 바꿈 = 그 영상은 새 사본에 없음
     st.variant = d.variant ? { id: d.variant, port: d.port, state: d.state, message: d.message } : null;
     if (d.state === 'failed') toast(`수정안 사본 실패: ${d.message ?? ''}`, true);
     if (st.compare) renderStage();
@@ -438,6 +506,7 @@ async function loadSlots() {
   st.slots = j.slots || [];
   st.pageId ??= st.pages[0]?.pageId;
   st.trials.clear();
+  if ((j.place ?? 'public') === 'public') seedVideos('public', st.slots, j.states); // PC2-스튜디오-9
   for (const slot of st.slots) {
     const t = trialFromState(slot, j.states?.[slot.key]);
     if (t) st.trials.set(slot.key, t);

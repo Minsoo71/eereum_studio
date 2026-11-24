@@ -1,4 +1,4 @@
-# 신호 약속 · 대장 창 ↔ 도우미 ↔ 미리보기 창 (약속 v1.6 · PC9 · 2026-11-18 · v1.3 PC11 · v1.4 · v1.5 PC9 11-19 · v1.6 PC2 11-22)
+# 신호 약속 · 대장 창 ↔ 도우미 ↔ 미리보기 창 (약속 v1.7 · PC9 · 2026-11-18 · v1.3 PC11 · v1.4 · v1.5 PC9 11-19 · v1.6 PC2 11-22 · v1.7 PC2 11-24)
 
 > v1.1 바뀐 점(11-18 · 1단계): ① 놓기 = 한 번(`POST /api/drop?key=&target=` · 몸통 = 파일 그대로 · 머리 `x-file-name`) — v1의 upload + drop 두 번을 합침 ② `slot.updated`에 `urls: { pc, mobile, video }` · `warnings` 추가 ③ `slot.selected`에 `paths` 추가(그 칸이 보이는 주소) ④ 명령 주소 = `POST /api/<명령>` 그대로
 > v1.2 바뀐 점(11-18 18:00 통합): 오류 신호 이름 `error` → **`helper.error`**(EventSource는 이름이 `error`인 신호를 연결 끊김과 구별하지 못함 → 미리보기 창에 "연결 끊김"이 잘못 뜸) · 미리보기 창(PC11)은 `helper.error`로 받아 주세요
@@ -6,6 +6,7 @@
 > v1.4 바뀐 점(11-19 · PC9 · G1 판): ① `confirm`에 `replace?: true` — 같은 칸에 확정 대기 요청(요청\ 안 그 칸 .json)이 있으면 오류 `ALREADY_REQUESTED` + `error.detail.pending[]` → 대장 "앞 요청 바꾸기"(replace) / "취소" · 바꾸면 앞 요청은 `이전\_바뀐요청\`(지우지 않음) ② 신호 `slot.overwritten` `{ key, slotId, by, at, revision, mine }` — 내가 쓴 상태 파일을 5 · 15초 뒤 다시 읽어 다른 컴퓨터가 덮었으면(V5 S2 · 1초 안 동시 쓰기) · 미리보기는 무시해도 됨 ③ 오류 응답에 `detail?` · 모두 있어도 되고 없어도 되는 칸 → v1.3 창과 그대로 맞음
 > v1.5 바뀐 점(11-19 · PC9 · G1 판 2 · PC6 고칠 점): ① 도우미는 `Host`가 localhost가 아니면 403 `HOST`(R-c · 창은 늘 localhost로 열어 그대로) ② `_시험` · 확정 요청 파일 확장자 = 내용에서 알아낸 형식(R-b · 놓은 이름 확장자 X) ③ GPS 경고 = EXIF GPS 칸(0x8825) 있을 때만(R-a) ④ `GET /api/status`에 `warnings?: string[]`(R-1 방화벽 규칙 없음 등 · 대장 위 빨간 띠) · 미리보기 창은 바꿀 것 없음
 > v1.6 바뀐 점(11-22 · PC2-스튜디오-7 · 수정안 위에 그림 놓기): ① **놓을 곳** `place: "public" | "variant"` — `drop` · `trial-file` · `light-sheet` · `thumb` · `slots`는 주소에 `&place=` · `revert` · `confirm` · `focus`는 몸통에 `place` · 없으면 도우미의 지금 놓을 곳 ② 명령 `place` · 신호 **`place.changed`** · 수정안 사본이 켜지면 도우미가 놓을 곳 = 수정안으로 바꿈 · 꺼지면 공개본 ③ `slot.updated`에 `place` · 수정안이면 `variant: "<수정안 id>"`(미리보기는 그 창에만) ④ `GET /api/status`에 `place` · `label` · `variant: { id, label, number, branch, state }` ⑤ 수정안 확정 `.json`에 `targetPR: { id, number, branch, sha }` · 이름에 `_pr<번호>` → M5 `--target-pr <번호>`가 그 PR 브랜치에 커밋(새 PR 아님) ⑥ 수정안 칸 목록 = 그 PR 코드(media.ts)로 · 상태는 이 컴퓨터 `variant-state\`(공유 `_상태`와 따로) · 시험 원본 `_시험\_pr\<수정안>\<키>\` · `spec.switchWidth`(휴대폰 → PC 그림이 바뀌는 폭) · 모두 있어도 되고 없어도 되는 칸 → v1.5 창과 그대로 맞음
+> v1.7 바뀐 점(11-24 · PC2-스튜디오-9 · 휴대폰 히어로에 세로 영상): ① `drop`의 `target`에 **`auto`**(대장 기본) — 휴대폰 · PC 파일이 따로 있는 칸에 세로 영상(높이 > 폭 · 예 1080×2340)이면 `mobile` · 그 밖은 `both` · 응답에 정해진 `target` ② 영상 `slot.updated`에 **`target: "both"|"mobile"|"pc"`** → 미리보기는 칸의 `<source media="(min-width…)">`(없으면 1280px) 기준으로 그 폭에서만 영상을 보이고 다른 폭은 원래 그림 ③ 미리보기는 수정안 신호를 받을 창이 없으면(공개본만 보기) 버리지 않고 비교 보기를 열거나 알림 · 놓은 영상은 창을 다시 그려도 다시 끼움 ④ 연결 스크립트 `studio:applied`에 `target?` · `shown?`(그 폭에서 보이는 영상 수) · `count: 0`이면 미리보기가 "끼울 곳을 못 찾았어요" 알림 ⑤ 영상 확정 `.json`에 `target` · 모두 있어도 되고 없어도 되는 칸 → v1.6 창과 그대로 맞음
 
 ## 1. 연결
 | 쪽 | 주소 |
@@ -25,7 +26,7 @@
 ## 2. 명령 (창 → 도우미)
 | 명령 | 보내는 창 | 몸통 | 도우미가 하는 일 | 뒤따르는 신호 |
 |---|---|---|---|---|
-| `drop` (놓음) | 대장 | `POST /api/drop?key=<키>&target=pc\|mobile\|both` · 몸통 = 파일 그대로(`application/octet-stream`) · 머리 `x-file-name: <encodeURIComponent(이름)>` | 종류 · 크기 검사(내용으로) → 방향 바로잡기 · sRGB · 카메라/GPS 정보 지움 → 지금 파일과 같은 형식 · 칸 최소 폭으로 → 사본에만 끼움(원래 파일은 `D:\eereum_studio\_스튜디오_원본\`) → 이미지 캐시 지움 → 놓은 원본은 공유 `_시험\<키>\` → 상태 `trial` · 영상은 사본 `/media/_studio/<키>.mp4` | `slot.updated` |
+| `drop` (놓음) | 대장 | `POST /api/drop?key=<키>&target=pc\|mobile\|both\|auto`(v1.7 · auto = 세로 영상이면 mobile) · 몸통 = 파일 그대로(`application/octet-stream`) · 머리 `x-file-name: <encodeURIComponent(이름)>` | 종류 · 크기 검사(내용으로) → 방향 바로잡기 · sRGB · 카메라/GPS 정보 지움 → 지금 파일과 같은 형식 · 칸 최소 폭으로 → 사본에만 끼움(원래 파일은 `D:\eereum_studio\_스튜디오_원본\`) → 이미지 캐시 지움 → 놓은 원본은 공유 `_시험\<키>\` → 상태 `trial` · 영상은 사본 `/media/_studio/<키>.mp4` | `slot.updated` |
 | `revert` (되돌림) | 대장 | `{ key, variant? }` | 사본의 원래 파일로 되돌림 · 상태 `trial: null` | `slot.updated` |
 | `select` (칸 고름) | 대장 | `{ key }` | (없음 · 전달만) | `slot.selected` |
 | `refresh` (갱신 요청) | 둘 다 | `{ scope: "slots" \| "all" }` | 대장 다시 만들기(사이트 코드 다시 읽음) | `register.rebuilt` |
@@ -38,7 +39,7 @@
 ## 3. 신호 (도우미 → 모든 창)
 | 신호 | data | 받는 창이 할 일 |
 |---|---|---|
-| `slot.updated` | `{ key, slotId, lane: "image"\|"video", state, url, urls: { pc?, mobile?, video? }, version, warnings?, focus?: { x, y } }` | 미리보기: `[data-slot="key"]`의 그림을 `url?v=<version>`으로 바꿔 끼움(새로 고침 없이 · V3) / 대장: 줄 썸네일 · 상태 갱신 |
+| `slot.updated` | `{ key, slotId, lane: "image"\|"video", state, url, urls: { pc?, mobile?, video? }, version, warnings?, focus?: { x, y }, target?: "both"\|"mobile"\|"pc" }` | 미리보기: `[data-slot="key"]`의 그림을 `url?v=<version>`으로 바꿔 끼움(새로 고침 없이 · V3) · 영상은 `target` 폭에서만(v1.7) / 대장: 줄 썸네일 · 상태 갱신 |
 | `slot.selected` | `{ key, slotId, paths }` | 미리보기: 그 칸으로 스크롤 + 1.5초 테두리 · 화면에 없으면 그 칸 페이지로 이동(slots의 paths 첫 번째) |
 | `register.rebuilt` | `{ repoCommit, added: [key], removed: [key], moved: [{ key, fromSlotId, toSlotId }], orphanTrials: [key] }` | 대장: 다시 그림 + 바뀐 점 보고 / 미리보기: 칸 표시 다시 찾기 |
 | `slot.overwritten` (v1.4) | `{ key, slotId, by, at, revision, mine: { at, trial } }` | 대장: "다른 컴퓨터(by)가 방금 이 칸을 바꿨어요" + 줄 다시 그림 / 미리보기: 무시(그 뒤 그림은 slot.updated로 옴) |

@@ -21,6 +21,7 @@
   var script = document.currentScript;
   var params = new URL(script ? script.src : location.href, location.href).searchParams;
   var PARENT = params.get('parent') || 'http://localhost:4300'; // 이 출처에서 온 메시지만 받음
+  var videos = Object.create(null); // PC2-스튜디오-9: 칸 키 → 마지막 영상 신호(사이트가 화면을 다시 그려 끼운 영상이 빠지면 다시 끼움)
   var versions = Object.create(null); // 칸마다 마지막으로 적용한 version (늦게 온 옛 신호 무시)
   var lastSlots = '';
   var muteScrollUntil = 0;
@@ -186,6 +187,54 @@
     return v;
   }
 
+  /**
+   * 휴대폰만 · PC만 영상(PC2-스튜디오-9): 그 칸에서 PC 그림이 나오는 폭 조건
+   * = 칸 안 <source media="(min-width: …)">를 그대로 씀(#101 홈 히어로 = 768px) · 없으면 사이트 기본 1280px(<Media>)
+   */
+  function pcMediaOf(el) {
+    var sources = Array.prototype.slice.call(el.querySelectorAll('source'));
+    for (var i = 0; i < sources.length; i++) {
+      var m = sourceMedia(sources[i]);
+      if (/min-width/.test(m)) return m;
+    }
+    return '(min-width: 1280px)';
+  }
+
+  function isPcWidth(media) {
+    if (typeof window.matchMedia === 'function') return window.matchMedia(media).matches;
+    var px = Number((String(media).match(/min-width:\s*([\d.]+)px/) || [])[1]);
+    return isFinite(px) && px > 0 ? innerWidth >= px : innerWidth >= 1280;
+  }
+
+  /** 지금 폭에서 이 칸의 영상을 보일지 · target = both | mobile | pc */
+  function videoShows(target, media) {
+    if (target === 'mobile') return !isPcWidth(media);
+    if (target === 'pc') return isPcWidth(media);
+    return true;
+  }
+
+  /** 끼운 영상 하나를 지금 폭에 맞게 보이기 · 숨기기(숨기면 원래 그림이 보임) · 보이면 true */
+  function syncVideo(el) {
+    var v = el.querySelector('[data-studio-video]');
+    if (!v) return false;
+    var show = videoShows(v.getAttribute('data-studio-target') || 'both', v.getAttribute('data-studio-media') || pcMediaOf(el));
+    var hidden = el.querySelector('[data-studio-hidden]');
+    v.style.display = show ? '' : 'none';
+    if (hidden) hidden.style.display = show ? 'none' : '';
+    if (show) { if (v.play) { var pr = v.play(); if (pr && pr.catch) pr.catch(function () {}); } }
+    else if (v.pause) v.pause();
+    return show;
+  }
+
+  var syncTimer = 0;
+  function syncAllVideos() {
+    document.querySelectorAll('[data-slot]').forEach(function (el) { syncVideo(el); });
+  }
+  window.addEventListener('resize', function () {
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(syncAllVideos, 100);
+  });
+
   /** 끼운 영상을 빼고 숨긴 그림을 다시 보임 · 뺀 게 있으면 true */
   function restoreVideo(el) {
     var v = el.querySelector('[data-studio-video]');
@@ -218,25 +267,35 @@
     var lane = msg.lane === 'video' ? 'video' : 'image';
     var urls = pickUrls(msg);
     var count = 0;
+    var shown = 0;
+    var target = msg.target === 'mobile' || msg.target === 'pc' ? msg.target : 'both';
     var pos = lane === 'image' ? focusCss(msg.focus) : null;
     els.forEach(function (el) {
       if (lane === 'video') {
         // PC8 B-6: 그림만 있는 칸에 mp4를 놓아도 그 자리에 <video>를 끼워 미리보기(전엔 <video>가 없으면 "0곳")
         if (!urls.video || msg.state === 'empty' || msg.state === 'live') {
+          delete videos[key];
           // 되돌림(영상 없음) → 끼운 영상을 빼고 원래 그림을 다시 보임
           if (restoreVideo(el)) count++;
           return;
         }
+        videos[key] = msg;
         var v = el.matches('video') ? el : el.querySelector('video');
         if (!v) v = injectVideo(el);
+        // PC2-스튜디오-9: 휴대폰만 · PC만 → 그 폭에서만 보임(폭을 바꾸면 다시 맞춤)
+        v.setAttribute('data-studio-target', target);
+        if (v.getAttribute('data-studio-video') !== null) v.setAttribute('data-studio-media', pcMediaOf(el));
         v.src = withVersion(urls.video, version);
         if (msg.poster) v.poster = withVersion(msg.poster, version);
         if (v.load) v.load();
-        if (v.play) { var pr = v.play(); if (pr && pr.catch) pr.catch(function () {}); }
+        var show = v.getAttribute('data-studio-video') !== null ? syncVideo(el) : videoShows(target, pcMediaOf(el));
+        if (show && v.play) { var pr = v.play(); if (pr && pr.catch) pr.catch(function () {}); }
         count++;
+        if (show) shown++;
         return;
       }
       // 그림을 놓음: 앞서 끼운 영상이 있으면 빼고 그림으로
+      delete videos[key];
       restoreVideo(el);
       if ((el.getAttribute('data-slot-kind') || '') === 'background') {
         var bgUrl = urls.pc || urls.mobile;
@@ -273,7 +332,8 @@
         count++;
       });
     });
-    post({ type: 'studio:applied', key: key, version: version, count: count, lane: lane });
+    // PC2-스튜디오-9: count 0 = 끼울 곳을 못 찾음 → 미리보기 창이 알림 글을 띄움 · shown = 지금 폭에서 보이는 영상 수
+    post({ type: 'studio:applied', key: key, version: version, count: count, lane: lane, quiet: msg.quiet ? true : undefined, target: lane === 'video' ? target : undefined, shown: lane === 'video' ? shown : undefined, width: innerWidth });
   }
 
   /**
@@ -327,9 +387,26 @@
   );
 
   // 화면이 늦게 붙는 칸(DeferredMedia)도 잡도록 바뀔 때마다 다시 알림
+  /** PC2-스튜디오-9: 사이트가 화면을 다시 그리면(하이드레이션 다시 그림 · 페이지 안 이동) 끼운 영상이 빠짐 → 다시 끼움(조용히) */
+  function reattachVideos() {
+    Object.keys(videos).forEach(function (key) {
+      var els = slotElements(key);
+      if (!els.length) return;
+      var lost = els.some(function (el) {
+        var v = el.matches('video') ? el : el.querySelector('video');
+        return !v || v.getAttribute('data-studio-target') === null;
+      });
+      if (!lost) return;
+      delete versions[key];
+      var m = {};
+      for (var k in videos[key]) m[k] = videos[key][k];
+      m.quiet = true;
+      apply(m);
+    });
+  }
   var mo = new MutationObserver(function () {
     clearTimeout(mo.t);
-    mo.t = setTimeout(announce, 200);
+    mo.t = setTimeout(function () { reattachVideos(); announce(); }, 200);
   });
   // 사본(next dev) 왼쪽 아래 "N" 개발 표시 숨기기(PC2-스튜디오-1) — 사이트 코드는 그대로 · 이 미리보기 창 안에서만
   // 표시는 <nextjs-portal>(열린 shadow DOM) 안 #devtools-indicator · [data-next-badge-root] · 오류 창(대화 상자)은 그대로 보임
@@ -358,5 +435,5 @@
   else start();
 
   // 시험용으로 꺼내 둠 (node --test)
-  window.__studioBridge = { withVersion: withVersion, rewriteSrcset: rewriteSrcset, matchesTarget: matchesTarget, pickUrls: pickUrls, hideDevIndicator: hideDevIndicator };
+  window.__studioBridge = { withVersion: withVersion, rewriteSrcset: rewriteSrcset, matchesTarget: matchesTarget, pickUrls: pickUrls, hideDevIndicator: hideDevIndicator, videoShows: videoShows, pcMediaOf: pcMediaOf, reattachVideos: reattachVideos };
 })();

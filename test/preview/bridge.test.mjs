@@ -53,7 +53,7 @@ function setup(slots, opts = {}) {
   const ctx = {
     window, document, location: { href: 'http://localhost:4301/', origin: 'http://localhost:4301', pathname: '/' },
     URL, setTimeout: (fn) => fn(), clearTimeout() {}, Date, Number, String, JSON, Object, Array,
-    MutationObserver: class { observe() {} }, innerHeight: 800, innerWidth: 390, scrollX: 0, scrollY: 0, scrollTo() {},
+    MutationObserver: class { observe() {} }, innerHeight: 800, innerWidth: opts.innerWidth ?? 390, scrollX: 0, scrollY: 0, scrollTo() {},
   };
   ctx.window.window = ctx.window;
   vm.runInNewContext(SRC, ctx);
@@ -276,4 +276,89 @@ test('bridge: 개발 표시가 없는 화면(운영처럼)에서도 그대로 �
   const { api, posted } = setup([], { doc: { querySelector: () => null } });
   assert.doesNotThrow(() => api.hideDevIndicator());
   assert.ok(posted.find((p) => p.m.type === 'studio:ready'));
+});
+
+// PC2-스튜디오-9: #101 홈 히어로(<div data-slot> > <picture> > <source media="(min-width: 768px)"> + <img>)에 휴대폰 세로 영상
+function heroSlot() {
+  const img = node('img', { src: '/_next/image?url=%2Fmedia%2Fhome%2Fhome-hero-mobile-v01.webp&w=828', class: 'object-cover' });
+  const pic = node('picture', {}, [node('source', { media: '(min-width: 768px)' }), img]);
+  const slot = node('div', { 'data-slot': 'home.hero', 'data-slot-kind': 'normal' }, [pic]);
+  return { slot, pic, img };
+}
+const heroVideo = (target, version, extra = {}) => ({ type: 'studio:update', key: 'home.hero', lane: 'video', state: 'trial', urls: { video: '/media/_studio/home.hero.mp4' }, target, version, ...extra });
+const lastApplied = (posted) => posted.filter((p) => p.m.type === 'studio:applied').pop().m;
+
+test('bridge: 휴대폰만 영상(PC2-스튜디오-9) — 390px = 영상 재생 · 그림 숨김 · shown 1', () => {
+  const { slot, pic } = heroSlot();
+  const { posted, send, api } = setup([slot], { createElement: (t) => node(t), innerWidth: 390 });
+  assert.equal(api.pcMediaOf(slot), '(min-width: 768px)', '칸의 <source> 폭을 그대로 씀');
+  send(heroVideo('mobile', 40));
+  const v = slot.querySelector('video');
+  assert.ok(v);
+  assert.equal(v.getAttribute('data-studio-target'), 'mobile');
+  assert.equal(v.style.display, '');
+  assert.equal(pic.style.display, 'none');
+  assert.equal(v.playing, true);
+  const a = lastApplied(posted);
+  assert.deepEqual([a.count, a.shown, a.target], [1, 1, 'mobile']);
+});
+
+test('bridge: 휴대폰만 영상을 PC 폭(1440 · 768 이상)에서 = 영상 숨김 · 원래 PC 그림 · count 1 · shown 0', () => {
+  const { slot, pic } = heroSlot();
+  const { posted, send } = setup([slot], { createElement: (t) => node(t), innerWidth: 1440 });
+  send(heroVideo('mobile', 41));
+  const v = slot.querySelector('video');
+  assert.equal(v.style.display, 'none');
+  assert.equal(pic.style.display, '', 'PC 그림이 보임');
+  assert.equal(v.playing, false);
+  const a = lastApplied(posted);
+  assert.deepEqual([a.count, a.shown], [1, 0]);
+});
+
+test('bridge: PC만 영상 = 768 이상에서만 · 둘 다(예전 신호 · target 없음) = 모든 폭 · 768은 PC 쪽(min-width 포함)', () => {
+  for (const [w, target, show] of [[390, 'pc', false], [767, 'pc', false], [768, 'pc', true], [768, 'mobile', false], [390, undefined, true], [1440, 'both', true]]) {
+    const { slot } = heroSlot();
+    const { send } = setup([slot], { createElement: (t) => node(t), innerWidth: w });
+    send(heroVideo(target, 50));
+    assert.equal(slot.querySelector('video').style.display, show ? '' : 'none', `${w}px · ${target}`);
+  }
+});
+
+test('bridge: <source> 없는 칸 = 사이트 기본 1280 · 다시 보낸 신호(quiet)는 applied에 quiet 표시', () => {
+  const img = node('img', { src: '/media/about/hero.jpg' });
+  const slot = node('div', { 'data-slot': 'about.hero' }, [img]);
+  const { posted, send, api } = setup([slot], { createElement: (t) => node(t), innerWidth: 1024 });
+  assert.equal(api.pcMediaOf(slot), '(min-width: 1280px)');
+  send({ type: 'studio:update', key: 'about.hero', lane: 'video', urls: { video: '/v.mp4' }, target: 'mobile', version: 7, quiet: true });
+  assert.equal(slot.querySelector('video').style.display, '', '1024 < 1280 = 휴대폰 쪽');
+  assert.equal(lastApplied(posted).quiet, true);
+  assert.equal(api.videoShows('pc', '(min-width: 1280px)'), false);
+});
+
+test('bridge: 끼울 곳 없는 그림 칸(그림 · 배경 없음) = count 0 → 미리보기가 알림을 띄움', () => {
+  const slot = node('div', { 'data-slot': 'home.empty' }, []);
+  const { posted, send } = setup([slot], { createElement: (t) => node(t) });
+  send({ type: 'studio:update', key: 'home.empty', lane: 'image', urls: { pc: '/a.jpg' }, version: 1 });
+  assert.equal(lastApplied(posted).count, 0);
+});
+
+test('bridge: 사이트가 화면을 다시 그려 끼운 영상이 빠지면(#101 하이드레이션) 다시 끼움 · 되돌린 뒤엔 안 끼움', () => {
+  const { slot, pic } = heroSlot();
+  const { posted, send, api } = setup([slot], { createElement: (t) => node(t), innerWidth: 390 });
+  send(heroVideo('mobile', 60));
+  // React가 칸 안을 새로 그림 = 끼운 <video>가 없어지고 그림이 다시 보임
+  slot.removeChild(slot.querySelector('video'));
+  pic.style.display = '';
+  api.reattachVideos();
+  const v = slot.querySelector('video');
+  assert.ok(v, '다시 끼움');
+  assert.equal(v.getAttribute('data-studio-target'), 'mobile');
+  assert.equal(pic.style.display, 'none');
+  assert.equal(lastApplied(posted).quiet, true, '다시 끼운 것은 알림 없이');
+  api.reattachVideos();
+  assert.equal(slot.querySelectorAll('video').length, 1, '있으면 또 넣지 않음');
+  send({ type: 'studio:update', key: 'home.hero', lane: 'video', state: 'live', urls: {}, version: 61 });
+  assert.equal(slot.querySelector('video'), null);
+  api.reattachVideos();
+  assert.equal(slot.querySelector('video'), null, '되돌린 영상은 다시 안 끼움');
 });
